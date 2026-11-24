@@ -1,5 +1,4 @@
--- À exécuter UNE FOIS, après avoir créé votre compte dans Supabase
--- (Authentication > Users > Add user > Create new user, avec « Auto Confirm User » coché).
+-- À exécuter UNE FOIS, après avoir créé et confirmé votre compte sur le site (page /connexion).
 -- Remplacez l'adresse ci-dessous par la vôtre. Ce script vous donne le rôle d'administrateur.
 
 insert into public.staff (user_id, email, role)

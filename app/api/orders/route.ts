@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseService } from "@/lib/supabase/server";
-import { requestStaff } from "@/lib/auth";
+import { currentUser, requestStaff } from "@/lib/auth";
 import { createCheckout, sumupConfigured } from "@/lib/sumup";
 import { parseCartKey, MAX_ITEMS, HOLD_MINUTES, type Line, type Pass, type Prices } from "@/lib/catalog";
 import { code } from "@/lib/format";
@@ -9,17 +9,23 @@ type Body = { eventId?: string; name?: string; email?: string; phone?: string; g
 
 export async function POST(req: Request) {
   const body = (await req.json().catch(() => ({}))) as Body;
+  const admin = supabaseService();
+  const staff = await requestStaff("scan");
+  // Un membre de l'équipe peut vendre pour quelqu'un d'autre (guichet) : la commande va à l'e-mail saisi
+  const user = staff ? null : await currentUser();
+  const { data: settings } = await admin.from("settings").select("account_required").eq("id", 1).maybeSingle();
+  if (settings?.account_required && !user && !staff) return NextResponse.json({ error: "Connectez-vous ou créez un compte pour acheter." }, { status: 401 });
   const name = (body.name ?? "").trim().slice(0, 120);
-  const email = (body.email ?? "").trim().toLowerCase().slice(0, 190);
+  // Client connecté : la commande est rattachée à son compte et à son e-mail
+  const email = (user?.email ?? body.email ?? "").trim().toLowerCase().slice(0, 190);
   if (!name) return NextResponse.json({ error: "Indiquez votre nom." }, { status: 400 });
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return NextResponse.json({ error: "Adresse e-mail invalide." }, { status: 400 });
 
   // Sans SumUp, seul le paiement simulé est possible, et uniquement pour l'équipe connectée (tests).
   const demo = !sumupConfigured();
-  if (demo && !(await requestStaff("scan")))
+  if (demo && !staff)
     return NextResponse.json({ error: "Le paiement en ligne n'est pas encore ouvert. Réessayez plus tard." }, { status: 503 });
 
-  const admin = supabaseService();
   const { data: ev } = await admin.from("events").select("id, name, on_sale, prices").eq("id", body.eventId ?? "").maybeSingle();
   if (!ev || !ev.on_sale) return NextResponse.json({ error: "Ce match n'est pas en vente." }, { status: 400 });
   const prices = ev.prices as Prices;
@@ -48,7 +54,7 @@ export async function POST(req: Request) {
 
   const id = code(8);
   const { data: created, error } = await admin.rpc("create_order", {
-    p_order: { id, event_id: ev.id, buyer_name: name, email, phone: (body.phone ?? "").trim().slice(0, 30) || null, grp: (body.group ?? "").trim().slice(0, 120) || null, lines, total_cents: total, is_demo: demo, pay_method: demo ? "demo" : "sumup" },
+    p_order: { id, event_id: ev.id, user_id: user?.id ?? null, buyer_name: name, email, phone: (body.phone ?? "").trim().slice(0, 30) || null, grp: (body.group ?? "").trim().slice(0, 120) || null, lines, total_cents: total, is_demo: demo, pay_method: demo ? "demo" : "sumup" },
     p_passes: passes,
     p_hold_minutes: HOLD_MINUTES,
   });

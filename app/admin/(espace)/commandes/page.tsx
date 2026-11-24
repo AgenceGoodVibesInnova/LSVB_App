@@ -1,19 +1,15 @@
 import Link from "next/link";
-import { requireStaff } from "@/lib/auth";
 import { supabaseService } from "@/lib/supabase/server";
 import { euros, shortDate } from "@/lib/format";
 import { HOLD_MINUTES, type Line, type Prices } from "@/lib/catalog";
-import EventEditor, { type AdminEvent } from "@/components/EventEditor";
+import type { AdminEvent } from "@/components/EventEditor";
 import OrderActions from "@/components/OrderActions";
-import LogoutButton from "@/components/LogoutButton";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Gestion", robots: { index: false } };
 
 type O = { id: string; created_at: string; buyer_name: string; email: string; phone: string | null; grp: string | null; lines: Line[]; total_cents: number; status: string; pay_method: string; access_token: string; passes: { kind: string; used_at: string | null }[] };
 
-export default async function Admin({ searchParams }: { searchParams: Promise<{ match?: string }> }) {
-  const me = await requireStaff("admin", "/admin");
+export default async function Commandes({ searchParams }: { searchParams: Promise<{ match?: string; q?: string }> }) {
   const admin = supabaseService();
   const [{ data: evs }, { data: sales }] = await Promise.all([
     admin.from("events").select("*").order("starts_at"),
@@ -29,8 +25,10 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
     ? await admin.from("orders").select("id, created_at, buyer_name, email, phone, grp, lines, total_cents, status, pay_method, access_token, passes(kind, used_at)")
         .eq("event_id", sel.id).in("status", ["paid", "pending"]).order("created_at", { ascending: false })
     : { data: [] };
-  const orders = (od ?? []) as O[];
-  const paid = orders.filter((o) => o.status === "paid");
+  const all = (od ?? []) as O[];
+  const q = (sp.q ?? "").trim().toLowerCase();
+  const orders = q ? all.filter((o) => [o.id, o.buyer_name, o.email, o.grp ?? "", o.phone ?? ""].some((v) => v.toLowerCase().includes(q))) : all;
+  const paid = all.filter((o) => o.status === "paid");
   const count = (k: string) => paid.reduce((n, o) => n + o.passes.filter((p) => p.kind === k).length, 0);
   const entered = paid.reduce((n, o) => n + o.passes.filter((p) => p.kind === "ticket" && p.used_at).length, 0);
   const food: Record<string, number> = {};
@@ -39,18 +37,14 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
   const online = paid.filter((o) => o.pay_method === "sumup").reduce((s, o) => s + o.total_cents, 0);
 
   return (
-    <main className="wrap">
-      <div className="row" style={{ justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-        <span className="small muted" style={{ flex: "none" }}>Connecté : <b>{me.email}</b> (administrateur)</span>
-        <span style={{ flex: "none" }}><LogoutButton /></span>
+    <>
+      <div className="page-head"><div><div className="kick">Ventes</div><h2>Commandes</h2></div>
+        <form className="search" action="/admin/commandes"><input type="hidden" name="match" value={sel?.id ?? ""} /><input type="search" name="q" defaultValue={sp.q ?? ""} placeholder="Nom, e-mail, n° de commande…" /><button className="btn blue sm">Rechercher</button></form>
       </div>
-      <EventEditor events={events} />
-
-      <div className="card" style={{ marginTop: 16 }}>
-        <div className="sec-title">Commandes</div>
+      <div className="card">
         <div className="row" style={{ gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
           {events.map((e) => (
-            <Link key={e.id} href={`/admin?match=${e.id}`} className={`btn sm ${e.id === sel?.id ? "blue" : "ghost"}`} style={{ flex: "none" }}>{shortDate(e.startsAt).slice(0, 5)} · {e.name.replace(/^LSVB vs /, "")}</Link>
+            <Link key={e.id} href={`/admin/commandes?match=${e.id}`} className={`btn sm ${e.id === sel?.id ? "blue" : "ghost"}`} style={{ flex: "none" }}>{shortDate(e.startsAt).slice(0, 5)} · {e.name.replace(/^LSVB vs /, "")}</Link>
           ))}
         </div>
         {sel ? (<>
@@ -77,11 +71,11 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
                   <td>{o.status === "paid" ? <span className="pill ok">{o.pay_method === "sumup" ? "Payé SumUp" : o.pay_method === "demo" ? "Simulé" : "Encaissé"}</span> : <span className="pill warn">En attente</span>}</td>
                   <td><OrderActions id={o.id} token={o.access_token} paid={o.status === "paid"} /></td>
                 </tr>
-              )) : <tr><td colSpan={7} className="muted">Aucune commande pour ce match.</td></tr>}
+              )) : <tr><td colSpan={7} className="muted">{q ? "Aucune commande ne correspond à la recherche." : "Aucune commande pour ce match."}</td></tr>}
             </tbody>
           </table></div>
         </>) : <p className="muted">Créez un premier match.</p>}
       </div>
-    </main>
+    </>
   );
 }

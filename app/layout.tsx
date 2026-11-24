@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import Header from "@/components/Header";
+import { currentUser, staffMember } from "@/lib/auth";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -9,7 +10,8 @@ export const metadata: Metadata = {
 };
 export const viewport: Viewport = { themeColor: "#1F5190" };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const [user, staff] = await Promise.all([currentUser(), staffMember()]);
   return (
     <html lang="fr">
       <head>
@@ -19,9 +21,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
       </head>
       <body>
-        <Header />
+        <Header logged={!!user} role={staff?.role ?? null} />
         {children}
-        <footer>Les Sables Vendée Basket · Billetterie des matchs à l&apos;Arena · <a href="/equipe/connexion">Accès équipe</a></footer>
+        <footer>Les Sables Vendée Basket · Billetterie des matchs à l&apos;Arena · <a href="/admin/connexion">Espace administrateur</a></footer>
       </body>
     </html>
   );

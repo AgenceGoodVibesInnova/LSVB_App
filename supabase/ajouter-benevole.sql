@@ -1,6 +1,6 @@
 -- Donne l'accès au scanner (entrée et buvette) à un bénévole.
--- 1. Créez d'abord son compte : Supabase > Authentication > Users > Add user > Create new user
---    (e-mail + mot de passe, « Auto Confirm User » coché).
+-- Plus simple : invitez la personne depuis /admin/equipe (niveau « Scanner »).
+-- Sinon : 1. Créez d'abord son compte sur le site (page /connexion) et confirmez-le.
 -- 2. Remplacez l'adresse ci-dessous, puis exécutez ce script dans SQL Editor.
 
 insert into public.staff (user_id, email, role)

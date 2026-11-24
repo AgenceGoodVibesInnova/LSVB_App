@@ -63,7 +63,8 @@ check(st == 200 and c3 != c2, "nouveau paiement préparé après refus")
 call(f"{S}/_set/{c3}/PAID", {}); st, d = call(f"{BASE}/api/orders/{t2}/verify", {}); check(d.get("status") == "paid", "2e tentative payée")
 
 # 6. Jauge : pas de survente
-sql("update events set capacity=3 where id='J16CHA'")
+already = int(sql("select count(*) from passes p join orders o on o.id=p.order_id where o.event_id='J16CHA' and p.kind='ticket' and (o.status='paid' or (o.status='pending' and o.created_at > now() - interval '30 minutes'))"))
+sql(f"update events set capacity={already + 3} where id='J16CHA'")
 def order(n):
     return call(f"{BASE}/api/orders", {"eventId": "J16CHA", "name": "Groupe", "email": "g@test.local", "items": {"full": n}})
 s1, d1 = order(2); s2, d2 = order(2); s3, d3 = order(1)

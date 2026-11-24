@@ -4,6 +4,12 @@ import { supabaseServer, supabaseService } from "./supabase/server";
 export type Role = "admin" | "scan";
 const RANK: Record<Role, number> = { scan: 1, admin: 2 };
 
+/** Personne connectée (client ou équipe), ou null. */
+export async function currentUser() {
+  const { data } = await (await supabaseServer()).auth.getUser();
+  return data.user ?? null;
+}
+
 /** Membre de l'équipe connecté (session du site), ou null. */
 export async function staffMember() {
   const supabase = await supabaseServer();
@@ -17,7 +23,7 @@ export async function staffMember() {
 /** Page réservée à l'équipe : redirige vers la connexion si besoin. */
 export async function requireStaff(min: Role = "scan", from = "/scanner") {
   const s = await staffMember();
-  if (!s) redirect(`/equipe/connexion?suite=${encodeURIComponent(from)}`);
+  if (!s) redirect(`/admin/connexion?suite=${encodeURIComponent(from)}`);
   if (RANK[s.role] < RANK[min]) redirect("/scanner");
   return s;
 }

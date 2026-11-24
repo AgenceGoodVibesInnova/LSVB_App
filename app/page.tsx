@@ -1,7 +1,7 @@
 import BuyForm, { type SaleEvent } from "@/components/BuyForm";
 import { supabaseService } from "@/lib/supabase/server";
 import { sumupConfigured } from "@/lib/sumup";
-import { staffMember } from "@/lib/auth";
+import { currentUser, staffMember } from "@/lib/auth";
 import { HOLD_MINUTES, type Prices } from "@/lib/catalog";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +19,8 @@ export default async function Home() {
     remaining: e.capacity > 0 ? Math.max(0, e.capacity - (sold.get(e.id) ?? 0)) : null,
   }));
   const demo = !sumupConfigured();
-  const staff = demo ? await staffMember() : null;
-  return <main><BuyForm events={events} demo={demo} canBuy={!demo || !!staff} /></main>;
+  const [staff, user, { data: settings }] = await Promise.all([staffMember(), currentUser(), admin.from("settings").select("account_required").eq("id", 1).maybeSingle()]);
+  const { data: profile } = user ? await admin.from("profiles").select("first_name, last_name, phone").eq("id", user.id).maybeSingle() : { data: null };
+  const me = user ? { name: [profile?.first_name, profile?.last_name].filter(Boolean).join(" "), email: user.email ?? "", phone: profile?.phone ?? "" } : null;
+  return <main><BuyForm events={events} demo={demo} canBuy={!demo || !!staff} me={staff ? null : me} isStaff={!!staff} accountRequired={!!settings?.account_required} /></main>;
 }

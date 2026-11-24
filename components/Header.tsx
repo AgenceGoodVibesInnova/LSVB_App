@@ -2,20 +2,20 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const PUBLIC = [
-  { href: "/", label: "Acheter", dot: true },
-  { href: "/mes-billets", label: "Mes billets" },
-];
-const TEAM = [
-  { href: "/scanner", label: "Scanner" },
-  { href: "/admin", label: "Gestion" },
-];
+type L = { href: string; label: string; dot?: boolean };
 
-export default function Header() {
+export default function Header({ logged, role }: { logged: boolean; role: "admin" | "scan" | null }) {
   const path = usePathname();
-  const team = path.startsWith("/scanner") || path.startsWith("/admin");
-  const links = team ? [...PUBLIC.slice(0, 1), ...TEAM] : PUBLIC;
-  const on = (h: string) => (h === "/" ? path === "/" || path.startsWith("/paiement") : path.startsWith(h) || (h === "/mes-billets" && path.startsWith("/billets")));
+  const links: L[] = [
+    { href: "/", label: "Acheter", dot: true },
+    logged ? { href: "/compte", label: "Mon compte" } : { href: "/mes-billets", label: "Mes billets" },
+    ...(logged ? [] : [{ href: "/connexion", label: "Connexion" }]),
+    ...(role ? [{ href: "/scanner", label: "Scanner" }] : []),
+    ...(role === "admin" ? [{ href: "/admin", label: "Gestion" }] : []),
+  ];
+  const on = (h: string) => (h === "/" ? path === "/" || path.startsWith("/paiement")
+    : h === "/admin" ? path.startsWith("/admin") && !path.startsWith("/admin/connexion")
+    : path.startsWith(h) || ((h === "/mes-billets" || h === "/compte") && path.startsWith("/billets")));
   return (
     <header>
       <div className="hwrap">
@@ -30,7 +30,7 @@ export default function Header() {
         <nav>
           {links.map((l) => (
             <Link key={l.href} href={l.href} className={on(l.href) ? "on" : ""}>
-              {"dot" in l && l.dot ? <span className="dot" /> : null}{l.label}
+              {l.dot ? <span className="dot" /> : null}{l.label}
             </Link>
           ))}
         </nav>

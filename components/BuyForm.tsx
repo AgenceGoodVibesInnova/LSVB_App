@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TICKETS, FOOD, DRINKS, MAX_ITEMS, type Product, type Prices } from "@/lib/catalog";
 import { euros, longDate } from "@/lib/format";
@@ -7,13 +7,25 @@ import DrinkModal from "./DrinkModal";
 
 export type SaleEvent = { id: string; name: string; startsAt: string; venue: string; journee: number | null; prices: Prices; remaining: number | null };
 
-export default function BuyForm({ events, demo, canBuy }: { events: SaleEvent[]; demo: boolean; canBuy: boolean }) {
+type Me = { name: string; email: string; phone: string } | null;
+
+export default function BuyForm({ events, demo, canBuy, me, isStaff, accountRequired }: { events: SaleEvent[]; demo: boolean; canBuy: boolean; me: Me; isStaff: boolean; accountRequired: boolean }) {
   const router = useRouter();
   const [evId, setEvId] = useState(events[0]?.id ?? "");
   const [cart, setCart] = useState<Record<string, number>>({});
   const [stack, setStack] = useState<Record<string, string[]>>({});
   const [asking, setAsking] = useState<Product | null>(null);
-  const [form, setForm] = useState({ name: "", email: "", phone: "", group: "" });
+  const [form, setForm] = useState({ name: me?.name ?? "", email: me?.email ?? "", phone: me?.phone ?? "", group: "" });
+  const mustLogin = accountRequired && !me && !isStaff;
+
+  // Le panier survit à un passage par la page de connexion
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem("lsvb_cart") ?? "null");
+      if (saved && events.some((e) => e.id === saved.evId)) { setEvId(saved.evId); setCart(saved.cart ?? {}); }
+    } catch {}
+  }, [events]);
+  useEffect(() => { try { sessionStorage.setItem("lsvb_cart", JSON.stringify({ evId, cart })); } catch {} }, [evId, cart]);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState("");
@@ -70,6 +82,7 @@ export default function BuyForm({ events, demo, canBuy }: { events: SaleEvent[];
       const mine = JSON.parse(localStorage.getItem("lsvb_orders") ?? "[]") as { id: string; token: string }[];
       localStorage.setItem("lsvb_orders", JSON.stringify([{ id: data.id, token: data.token }, ...mine.filter((m) => m.id !== data.id)].slice(0, 20)));
     } catch {}
+    try { sessionStorage.removeItem("lsvb_cart"); } catch {}
     router.push(`/paiement/${data.token}`);
   }
 
@@ -135,9 +148,13 @@ export default function BuyForm({ events, demo, canBuy }: { events: SaleEvent[];
             ) : null}
             <div className="card">
               <div className="sec-title"><span className="n">4</span>Vos coordonnées</div>
+              {isStaff ? <p className="notice" style={{ marginTop: -4 }}>Vente par l&apos;équipe : saisissez les coordonnées de l&apos;acheteur, les billets lui seront envoyés.</p>
+                : me ? <p className="small muted" style={{ marginTop: -6 }}>Commande rattachée à votre compte : vos billets seront aussi dans « Mon compte ».</p>
+                : mustLogin ? <p className="notice" style={{ marginTop: -4 }}>Un compte est nécessaire pour acheter. <a href="/connexion?suite=/">Se connecter ou créer un compte</a> (votre panier est conservé).</p>
+                : <p className="small muted" style={{ marginTop: -6 }}>Vous avez un compte ? <a href="/connexion?suite=/">Connectez-vous</a> pour retrouver vos billets dans votre espace. Sinon, continuez simplement.</p>}
               <div className="row">
                 <label className="f"><span>Nom et prénom *</span><input type="text" autoComplete="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
-                <label className="f"><span>E-mail * (pour recevoir les billets)</span><input type="email" autoComplete="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
+                <label className="f"><span>E-mail * (pour recevoir les billets)</span><input type="email" autoComplete="email" value={form.email} disabled={!!me} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
               </div>
               <div className="row">
                 <label className="f"><span>Téléphone</span><input type="tel" autoComplete="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></label>
@@ -151,7 +168,9 @@ export default function BuyForm({ events, demo, canBuy }: { events: SaleEvent[];
           <div className="small muted" style={{ marginBottom: 8 }}>{ev ? <><b style={{ color: "var(--blue-d)" }}>{ev.name}</b><br />{longDate(ev.startsAt)}</> : "Aucun match sélectionné"}</div>
           {lines.length ? lines.map((l) => <div className="line" key={l.key}><span>{l.q} × {l.label}</span><b>{euros(l.q * l.unit)}</b></div>) : <div className="muted small">Votre panier est vide.</div>}
           <div className="tot"><span style={{ fontWeight: 800, textTransform: "uppercase", fontSize: 13 }}>Total</span><b>{euros(total)}</b></div>
-          <button className="btn pri full" style={{ marginTop: 14 }} disabled={!canBuy || !lines.length || busy} onClick={submit}>{busy ? "Préparation du paiement…" : "Payer ma commande"}</button>
+          {mustLogin
+            ? <a className="btn pri full" style={{ marginTop: 14 }} href="/connexion?suite=/">Se connecter pour acheter</a>
+            : <button className="btn pri full" style={{ marginTop: 14 }} disabled={!canBuy || !lines.length || busy} onClick={submit}>{busy ? "Préparation du paiement…" : "Payer ma commande"}</button>}
           {err ? <div className="err" role="alert">{err}</div> : null}
           <p className="small muted" style={{ margin: "12px 0 0" }}>Paiement sécurisé par carte bancaire avec SumUp. Après le paiement, vous recevez un QR code par billet et par article buvette, à l&apos;écran et par e-mail.</p>
         </aside>

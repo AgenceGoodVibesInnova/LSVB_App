@@ -8,6 +8,10 @@ SHOTS = os.path.join(L, "shots"); os.makedirs(SHOTS, exist_ok=True)
 PW = open(os.path.join(L, "admin_pw")).read().strip()
 BASE = "http://localhost:3000"
 fails = []
+import subprocess
+# Match de référence remis à zéro (copie locale de test uniquement)
+subprocess.run(["psql", "-q", "-h", "127.0.0.1", "-p", "54322", "-U", "postgres", "-c",
+  "delete from orders where event_id='J15FOU'; update events set starts_at='2026-12-11 20:00 Europe/Paris', capacity=0 where id='J15FOU'; update settings set account_required=false"], check=True)
 def check(cond, label):
     print(("OK  " if cond else "ÉCHEC ") + label)
     if not cond: fails.append(label)
@@ -24,7 +28,7 @@ with sync_playwright() as p:
     pg.screenshot(path=f"{SHOTS}/1-accueil.png", full_page=True)
 
     # 2. Connexion équipe
-    pg.goto(BASE + "/scanner"); pg.wait_for_url(re.compile("/equipe/connexion"))
+    pg.goto(BASE + "/scanner"); pg.wait_for_url(re.compile("/admin/connexion"))
     pg.fill("input[type=email]", "admin@test.local"); pg.fill("input[type=password]", PW); pg.click("button:has-text('Se connecter')")
     pg.wait_for_url(re.compile("/scanner")); check(True, "connexion équipe")
 
@@ -85,15 +89,16 @@ with sync_playwright() as p:
     st = pg.inner_text(".stats"); check("2 / 3" in st and "1 / 2" in st, f"compteurs en direct ({st!r})")
 
     # 6. Gestion
-    pg.goto(BASE + "/admin?match=J15FOU"); pg.wait_for_load_state("networkidle")
-    t = pg.inner_text("main")
-    check("Jeanne Martin" in t and "37,00" in t.replace(" ", " "), "commande visible en gestion")
-    pg.screenshot(path=f"{SHOTS}/6-gestion.png", full_page=True)
+    pg.goto(BASE + "/admin/matchs"); pg.wait_for_load_state("networkidle")
     pg.click("tr:has-text('LSVB vs Fougères') button:has-text('Modifier')")
     pg.fill("#ev-form input[type=datetime-local]", "2026-12-11T20:30")
     pg.locator("#ev-form label:has-text('Jauge') input").fill("1500")
     pg.click("#ev-form button:has-text('Enregistrer')"); pg.wait_for_timeout(1200)
     check("11/12 20:30" in pg.inner_text("main"), "modification de l'heure du match")
+    pg.goto(BASE + "/admin/commandes?match=J15FOU"); pg.wait_for_load_state("networkidle")
+    t = pg.inner_text("main")
+    check("Jeanne Martin" in t and "37,00" in t.replace("\u202f", " "), "commande visible en gestion")
+    pg.screenshot(path=f"{SHOTS}/6-gestion.png", full_page=True)
     with pg.expect_download() as d:
         pg.click("a:has-text('Télécharger')")
     csv = open(d.value.path(), encoding="utf-8-sig").read()

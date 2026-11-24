@@ -1,5 +1,5 @@
 import Scanner from "@/components/Scanner";
-import LogoutButton from "@/components/LogoutButton";
+import ClientLogout from "@/components/ClientLogout";
 import { requireStaff } from "@/lib/auth";
 import { supabaseService } from "@/lib/supabase/server";
 
@@ -17,7 +17,7 @@ export default async function Page() {
     <main className="wrap">
       <div className="row noprint" style={{ justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <span className="small muted" style={{ flex: "none" }}>Connecté : <b>{me.email}</b> ({me.role === "admin" ? "administrateur" : "scan"})</span>
-        <span style={{ flex: "none" }}><LogoutButton /></span>
+        <span style={{ flex: "none" }}><ClientLogout to="/admin/connexion" /></span>
       </div>
       <Scanner events={events.map((e) => ({ id: e.id, name: e.name, startsAt: e.starts_at }))} defaultEvent={next?.id ?? ""} />
     </main>
