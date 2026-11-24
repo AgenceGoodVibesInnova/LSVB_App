@@ -3,7 +3,7 @@ import { makeAuthLink } from "@/lib/authlinks";
 import { sendMail } from "@/lib/mailer";
 import { confirmSignupEmail } from "@/lib/emails/templates";
 
-type Body = { email?: string; password?: string; phone?: string; first_name?: string; last_name?: string; next?: string };
+type Body = { email?: string; password?: string; phone?: string; postal_code?: string; marketing_opt_in?: boolean; first_name?: string; last_name?: string; next?: string };
 
 export async function POST(req: Request) {
   const b = (await req.json().catch(() => ({}))) as Body;
@@ -14,7 +14,8 @@ export async function POST(req: Request) {
   const { link, error } = await makeAuthLink("signup", email, {
     password: b.password,
     next: b.next,
-    data: { first_name: first, last_name: String(b.last_name ?? "").trim().slice(0, 60), phone: String(b.phone ?? "").trim().slice(0, 20) || null },
+    data: { first_name: first, last_name: String(b.last_name ?? "").trim().slice(0, 60), phone: String(b.phone ?? "").trim().slice(0, 20) || null,
+      postal_code: String(b.postal_code ?? "").trim().slice(0, 10) || null, marketing_opt_in: !!b.marketing_opt_in },
   });
   if (error || !link) {
     const exists = /registered|exists/i.test(error ?? "");

@@ -48,6 +48,7 @@ GOTRUE_SMTP_ADMIN_EMAIL=test@local.test
 GOTRUE_LOG_LEVEL=warn
 EOF
 if [ "${FRESH:-0}" = 1 ]; then
+  rm -f admin_pw
   $P -f $ROOT/tests/local/bootstrap.sql
   (set -a; . ./gotrue.env; set +a; ./auth migrate >/dev/null 2>&1)
   for f in $ROOT/supabase/migrations/*.sql $ROOT/supabase/matchs-2026-2027.sql; do $P -v ON_ERROR_STOP=1 -f $f >/dev/null; done

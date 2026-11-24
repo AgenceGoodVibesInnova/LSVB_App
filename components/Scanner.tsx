@@ -11,11 +11,11 @@ const ICON = { ok: "✅", warn: "⚠️", bad: "⛔", wait: "⏳" };
 
 export default function Scanner({ events, defaultEvent }: { events: Ev[]; defaultEvent: string }) {
   const [eventId, setEventId] = useState(defaultEvent);
-  const [mode, setMode] = useState<"ticket" | "food">("ticket");
+  const [mode, setMode] = useState<"ticket" | "food" | "shop">("ticket");
   const [res, setRes] = useState<Result | null>(null);
   const [flash, setFlash] = useState(0);
   const [log, setLog] = useState<Log[]>([]);
-  const [stats, setStats] = useState({ ticket: { n: 0, u: 0 }, food: { n: 0, u: 0 } });
+  const [stats, setStats] = useState({ ticket: { n: 0, u: 0 }, food: { n: 0, u: 0 }, shop: { n: 0, u: 0 } });
   const [last, setLast] = useState<string | null>(null);
   const [cam, setCam] = useState(false);
   const [camMsg, setCamMsg] = useState("");
@@ -136,8 +136,9 @@ export default function Scanner({ events, defaultEvent }: { events: Ev[]; defaul
             </label>
             <div style={{ flex: 2, marginBottom: 12 }}>
               <div className="mode">
-                <button className={mode === "ticket" ? "on" : ""} onClick={() => { setMode("ticket"); setRes(null); input.current?.focus(); }}>🎟️ Entrée</button>
-                <button className={mode === "food" ? "on" : ""} onClick={() => { setMode("food"); setRes(null); input.current?.focus(); }}>🥪 Buvette</button>
+                {([["ticket", "🎟️ Entrée"], ["food", "🥪 Buvette"], ["shop", "👕 Boutique"]] as const).map(([m, l]) => (
+                  <button key={m} className={mode === m ? "on" : ""} onClick={() => { setMode(m); setRes(null); input.current?.focus(); }}>{l}</button>
+                ))}
               </div>
             </div>
           </div>
@@ -150,7 +151,7 @@ export default function Scanner({ events, defaultEvent }: { events: Ev[]; defaul
             </>) : (<>
               <div className="ico">📷</div>
               <div className="big" style={{ color: "var(--muted)" }}>Prêt à scanner</div>
-              <div className="det muted">Mode {mode === "ticket" ? "Entrée" : "Buvette"} · scannez un QR ou saisissez le code</div>
+              <div className="det muted">Mode {mode === "ticket" ? "Entrée" : mode === "food" ? "Buvette" : "Boutique"} · scannez un QR ou saisissez le code</div>
             </>)}
           </div>
           {last ? <div style={{ textAlign: "center", marginTop: 10 }}><button className="btn ghost sm" onClick={undo}>Annuler ce passage</button></div> : null}
@@ -176,6 +177,7 @@ export default function Scanner({ events, defaultEvent }: { events: Ev[]; defaul
           <div className="stats">
             <div className="stat"><span>Entrées</span><b>{stats.ticket.u} / {stats.ticket.n}</b><div className="bar"><i style={{ width: `${pct(stats.ticket.u, stats.ticket.n)}%` }} /></div></div>
             <div className="stat o"><span>Buvette servie</span><b>{stats.food.u} / {stats.food.n}</b><div className="bar"><i style={{ width: `${pct(stats.food.u, stats.food.n)}%` }} /></div></div>
+            {stats.shop.n ? <div className="stat"><span>Boutique remise</span><b>{stats.shop.u} / {stats.shop.n}</b><div className="bar"><i style={{ width: `${pct(stats.shop.u, stats.shop.n)}%` }} /></div></div> : null}
           </div>
         </div>
         <div className="card">

@@ -60,6 +60,8 @@ with sync_playwright() as p:
         mails = json.load(urllib.request.urlopen("http://127.0.0.1:1080/email"))
     m = [x for x in mails if any(t["address"] == "jeanne@test.local" for t in x["to"])]
     check(bool(m) and token in m[-1]["html"], "e-mail « Vos billets » avec le lien privé")
+    check(bool(m) and m[-1]["html"].count("cid:qr") == 5 and len(m[-1].get("attachments") or []) == 5, "les 5 QR codes sont dans l'e-mail (images intégrées)")
+    check(bool(m) and "Ticket de caisse LSVB-" in m[-1]["html"] and "TVA 5,5" in m[-1]["html"], "ticket de caisse avec TVA dans l'e-mail")
 
     # 5. Scanner
     pg.goto(BASE + "/scanner"); pg.wait_for_load_state("networkidle")

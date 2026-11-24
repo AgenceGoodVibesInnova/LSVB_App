@@ -4,7 +4,9 @@ import nodemailer from "nodemailer";
  * Envoi des e-mails par SMTP (boîte d’envoi du club).
  * Renvoie false sans planter si l'envoi n'est pas configuré.
  */
-export async function sendMail(opts: { to: string; subject: string; html: string; text: string }) {
+export type Attachment = { filename: string; content: Buffer | string; cid?: string; contentType?: string };
+
+export async function sendMail(opts: { to: string; subject: string; html: string; text: string; attachments?: Attachment[] }) {
   const host = process.env.SMTP_HOST;
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
@@ -21,6 +23,7 @@ export async function sendMail(opts: { to: string; subject: string; html: string
       subject: opts.subject,
       html: opts.html,
       text: opts.text,
+      attachments: opts.attachments,
     });
     return true;
   } catch (e) {

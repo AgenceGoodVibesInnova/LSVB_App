@@ -35,13 +35,13 @@ export default async function Dashboard() {
       <div className="kpis">
         <div className="stat"><span>Chiffre d&apos;affaires</span><b>{euros(tot.ca)}</b><div className="small muted">{euros(week.reduce((s, o) => s + o.total_cents, 0))} sur 7 jours</div></div>
         <div className="stat"><span>Billets vendus</span><b>{tot.t}</b><div className="small muted">{orders.length} commandes</div></div>
-        <div className="stat o"><span>Articles buvette</span><b>{tot.f}</b></div>
+        <div className="stat o"><span>Buvette / boutique</span><b>{tot.f}</b></div>
         <div className="stat"><span>Comptes clients</span><b>{accounts}</b></div>
       </div>
       <div className="card">
         <div className="sec-title">Prochains matchs</div>
         <div className="tablewrap"><table>
-          <thead><tr><th>Date</th><th>Match</th><th>Remplissage</th><th className="num">Billets</th><th className="num">Buvette</th><th className="num">CA</th><th></th></tr></thead>
+          <thead><tr><th>Date</th><th>Match</th><th>Remplissage</th><th className="num">Billets</th><th className="num">Buvette / boutique</th><th className="num">CA</th><th></th></tr></thead>
           <tbody>
             {upcoming.length ? upcoming.map((e) => {
               const s = by.get(e.id) ?? { t: 0, f: 0, ca: 0, n: 0 };
@@ -69,7 +69,7 @@ export default async function Dashboard() {
               <tr key={o.id}>
                 <td style={{ whiteSpace: "nowrap" }} className="small muted">{shortDate(o.created_at)}</td>
                 <td><b>{o.buyer_name}</b><div className="small muted">{names.get(o.event_id)}</div></td>
-                <td className="small">{o.passes.filter((p) => p.kind === "ticket").length} billet(s) · {o.passes.filter((p) => p.kind === "food").length} buvette</td>
+                <td className="small">{o.passes.filter((p) => p.kind === "ticket").length} billet(s) · {o.passes.filter((p) => p.kind !== "ticket").length} buvette / boutique</td>
                 <td className="num"><b>{euros(o.total_cents)}</b></td>
               </tr>
             ))}

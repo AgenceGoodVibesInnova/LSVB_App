@@ -1,13 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { sendMail } from "./mailer";
-import { longDate } from "./format";
+import QRCode from "qrcode";
+import { passCode } from "./format";
 import { ticketsEmail } from "./emails/templates";
-import type { Line } from "./catalog";
+import { loadReceipt } from "./receipt";
 
 import { siteUrl as site } from "./emails/layout";
 
 /** Marque la commande payée (une seule fois) et envoie les billets par e-mail. */
-export async function markPaid(admin: SupabaseClient, id: string, method?: "sumup" | "demo" | "manuel") {
+export async function markPaid(admin: SupabaseClient, id: string, method?: "sumup" | "demo" | "manuel" | "gratuit") {
   const { data } = await admin
     .from("orders")
     .update({ status: "paid", paid_at: new Date().toISOString(), ...(method ? { pay_method: method } : {}) })
@@ -15,25 +16,28 @@ export async function markPaid(admin: SupabaseClient, id: string, method?: "sumu
     .neq("status", "paid")
     .select("id")
     .maybeSingle();
-  if (data) await sendTickets(admin, id);
+  if (data) {
+    await admin.rpc("assign_receipt", { p_order: id }); // n° de ticket de caisse, continu par année
+    await sendTickets(admin, id);
+  }
 }
 
-/** E-mail « vos billets » avec le lien privé vers les QR codes. Renvoie true si envoyé. */
+/** E-mail « vos billets » : tous les QR codes intégrés + ticket de caisse. Renvoie true si envoyé. */
 export async function sendTickets(admin: SupabaseClient, id: string, force = false) {
-  const { data: o } = await admin
-    .from("orders")
-    .select("id, access_token, user_id, buyer_name, email, lines, total_cents, email_sent_at, status, is_demo, events(name, starts_at, venue)")
-    .eq("id", id)
-    .maybeSingle();
-  if (!o || o.status !== "paid" || (o.email_sent_at && !force)) return false;
-  const ev = (Array.isArray(o.events) ? o.events[0] : o.events) as { name: string; starts_at: string; venue: string } | null;
-  const mail = ticketsEmail(
-    { id: o.id, buyer_name: o.buyer_name, total_cents: o.total_cents, lines: o.lines as Line[], is_demo: o.is_demo },
-    ev ? { name: ev.name, when: longDate(ev.starts_at), venue: ev.venue } : null,
-    `${site()}/billets/${o.access_token}`,
-    !!o.user_id,
-  );
-  const ok = await sendMail({ to: o.email, ...mail });
+  const r = await loadReceipt(admin, { id });
+  if (!r || r.status !== "paid") return false;
+  if (!force) {
+    const { data } = await admin.from("orders").select("email_sent_at").eq("id", id).single();
+    if (data?.email_sent_at) return false;
+  }
+  const attachments = await Promise.all(r.passes.map(async (p) => ({
+    filename: `qr-${p.idx + 1}.png`,
+    content: await QRCode.toBuffer(`LSVB:${passCode(r.id, p.idx, p.token)}`, { type: "png", width: 340, margin: 1, errorCorrectionLevel: "M" }),
+    cid: `qr${p.idx}@lsvb`,
+    contentType: "image/png",
+  })));
+  const mail = ticketsEmail(r, `${site()}/billets/${r.access_token}`, `${site()}/recu/${r.access_token}`);
+  const ok = await sendMail({ to: r.email, ...mail, attachments });
   if (ok) await admin.from("orders").update({ email_sent_at: new Date().toISOString() }).eq("id", id);
   return ok;
 }

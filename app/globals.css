@@ -231,3 +231,19 @@ a{color:var(--blue)}
 .search{display:flex;gap:8px}
 .search input{flex:1}
 @media(max-width:860px){.adm{grid-template-columns:1fr;padding:14px 12px 50px}.adm-side{position:static;flex-direction:row;overflow-x:auto;padding:8px}.adm-side a{white-space:nowrap}.adm-role,.adm-foot{display:none}}
+
+/* ---------- code promo, tailles ---------- */
+.promo{display:flex;gap:8px;margin-top:10px}
+.promo input{flex:1;padding:8px 11px;border:2px solid var(--grey);border-radius:10px;font-weight:700;letter-spacing:.06em}
+.promo-line{color:var(--ok)}
+.drinks.sizes{grid-template-columns:repeat(auto-fill,minmax(80px,1fr))}
+.drinks.sizes .drink{padding:14px 8px}
+.drinks.sizes .drink b{font-size:18px}
+.offer{max-height:340px;overflow:auto;border:2px solid var(--grey);border-radius:12px;padding:4px 12px 10px}
+.offer-row{display:flex;align-items:center;gap:10px;padding:3px 0}
+.offer-row input[type=number]{width:96px;padding:6px 8px;border:2px solid var(--grey);border-radius:8px}
+.f small{display:block;margin-top:4px;font-size:11.5px}
+input[type=date]{width:100%;padding:11px 13px;border:2px solid var(--grey);border-radius:12px;background:#fff}
+.prep{background:var(--orange-l);border-radius:14px;padding:14px 16px;margin-bottom:16px}
+.prep-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.prep-grid>div>b{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--orange-d);margin-bottom:4px}

@@ -5,8 +5,13 @@ import { supabaseServer, supabaseService } from "@/lib/supabase/server";
 export async function PATCH(req: Request) {
   const { data: { user } } = await (await supabaseServer()).auth.getUser();
   if (!user) return NextResponse.json({ error: "Non connecté." }, { status: 401 });
-  const b = (await req.json().catch(() => ({}))) as { first_name?: string; last_name?: string; phone?: string };
-  const { error } = await supabaseService().from("profiles").update({
+  const b = (await req.json().catch(() => ({}))) as { first_name?: string; last_name?: string; phone?: string; postal_code?: string; marketing_opt_in?: boolean };
+  const admin = supabaseService();
+  const { data: before } = await admin.from("profiles").select("marketing_opt_in").eq("id", user.id).single();
+  const { error } = await admin.from("profiles").update({
+    postal_code: String(b.postal_code ?? "").trim().slice(0, 10) || null,
+    marketing_opt_in: !!b.marketing_opt_in,
+    ...(!!b.marketing_opt_in !== !!before?.marketing_opt_in ? { marketing_opt_in_at: b.marketing_opt_in ? new Date().toISOString() : null } : {}),
     first_name: String(b.first_name ?? "").trim().slice(0, 60) || null,
     last_name: String(b.last_name ?? "").trim().slice(0, 60) || null,
     phone: String(b.phone ?? "").trim().slice(0, 20) || null,

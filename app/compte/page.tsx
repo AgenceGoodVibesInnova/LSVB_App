@@ -10,7 +10,7 @@ import ClientLogout from "@/components/ClientLogout";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Mon compte", robots: { index: false } };
 
-type O = { id: string; status: string; total_cents: number; lines: Line[]; access_token: string; created_at: string; events: { name: string; starts_at: string } | null; passes: { kind: string; used_at: string | null }[] };
+type O = { id: string; receipt_no: string | null; status: string; total_cents: number; lines: Line[]; access_token: string; created_at: string; events: { name: string; starts_at: string } | null; passes: { kind: string; used_at: string | null }[] };
 
 export default async function Compte() {
   const user = await currentUser();
@@ -19,8 +19,8 @@ export default async function Compte() {
   const email = (user.email ?? "").toLowerCase();
   // Commandes du compte, et celles passées avec la même adresse avant la création du compte
   const [{ data: profile }, { data: od }, staff] = await Promise.all([
-    admin.from("profiles").select("first_name, last_name, phone").eq("id", user.id).maybeSingle(),
-    admin.from("orders").select("id, status, total_cents, lines, access_token, created_at, events(name, starts_at), passes(kind, used_at)")
+    admin.from("profiles").select("first_name, last_name, phone, postal_code, marketing_opt_in").eq("id", user.id).maybeSingle(),
+    admin.from("orders").select("id, receipt_no, status, total_cents, lines, access_token, created_at, events(name, starts_at), passes(kind, used_at)")
       .or(`user_id.eq.${user.id},email.eq."${email}"`).in("status", ["paid", "pending"]).order("created_at", { ascending: false }),
     staffMember(),
   ]);
@@ -38,10 +38,13 @@ export default async function Compte() {
         <div className="nm">
           <b>{o.events?.name}</b>
           <span style={{ display: "block" }}>{o.events ? longDate(o.events.starts_at) : ""} · commande {o.id}</span>
-          <span style={{ display: "block" }}>{t} billet{t > 1 ? "s" : ""}{f ? ` · ${f} buvette` : ""} · {euros(o.total_cents)}</span>
+          <span style={{ display: "block" }}>{t} billet{t > 1 ? "s" : ""}{f ? ` · ${f} article${f > 1 ? "s" : ""} buvette / boutique` : ""} · {euros(o.total_cents)}</span>
         </div>
         {o.status === "paid"
-          ? <Link className="btn blue sm" style={{ flex: "none" }} href={`/billets/${o.access_token}`}>Mes QR codes</Link>
+          ? <span style={{ flex: "none", display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
+              <Link className="btn blue sm" href={`/billets/${o.access_token}`}>Mes QR codes</Link>
+              <Link className="linkbtn" href={`/recu/${o.access_token}`}>Ticket de caisse {o.receipt_no ?? ""}</Link>
+            </span>
           : <Link className="btn pri sm" style={{ flex: "none" }} href={`/paiement/${o.access_token}`}>Payer</Link>}
       </div>
     );
@@ -62,9 +65,9 @@ export default async function Compte() {
             <div className="sec-title" style={{ justifyContent: "space-between" }}>Mes prochains matchs <Link className="btn pri sm" href="/">Réserver</Link></div>
             {upcoming.length ? upcoming.map(card) : <div className="empty"><div className="e">🎟️</div>Aucune réservation à venir.</div>}
           </div>
-          {past.length ? <div className="card"><div className="sec-title">Historique</div>{past.map(card)}</div> : null}
+          {past.length ? <div className="card"><div className="sec-title">Anciens achats</div>{past.map(card)}</div> : null}
         </div>
-        <ProfileForm email={email} initial={{ first_name: profile?.first_name ?? "", last_name: profile?.last_name ?? "", phone: profile?.phone ?? "" }} />
+        <ProfileForm email={email} initial={{ first_name: profile?.first_name ?? "", last_name: profile?.last_name ?? "", phone: profile?.phone ?? "", postal_code: profile?.postal_code ?? "", marketing_opt_in: !!profile?.marketing_opt_in }} />
       </div>
     </main>
   );

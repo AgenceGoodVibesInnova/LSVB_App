@@ -1,5 +1,6 @@
-import { esc, orderTable, renderEmail, siteUrl } from "./layout";
-import type { Line } from "../catalog";
+import { esc, renderEmail, siteUrl } from "./layout";
+import { longDate, passCode } from "../format";
+import { PAY_LABEL, pct, type ReceiptData } from "../receipt";
 
 export function confirmSignupEmail(firstName: string | null, url: string) {
   return {
@@ -64,22 +65,68 @@ export function inviteEmail(url: string, role: string) {
   };
 }
 
-export function ticketsEmail(o: { id: string; buyer_name: string; total_cents: number; lines: Line[]; is_demo?: boolean }, ev: { name: string; when: string; venue: string } | null, url: string, hasAccount: boolean) {
+const eur = (c: number) => (c / 100).toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
+const KIND: Record<string, string> = { ticket: "Billet d'entrée", food: "Bon buvette", shop: "Bon boutique" };
+
+/** QR codes intégrés au mail (images jointes « cid: ») : rien à télécharger, tout est dans l'e-mail. */
+function qrGrid(r: ReceiptData, eventName: string) {
+  const count: Record<string, number> = {};
+  const total: Record<string, number> = {};
+  r.passes.forEach((p) => { total[p.kind] = (total[p.kind] ?? 0) + 1; });
+  const cells = r.passes.map((p) => {
+    count[p.kind] = (count[p.kind] ?? 0) + 1;
+    const color = p.kind === "ticket" ? "#1F5190" : "#F08A12";
+    return `<td width="50%" valign="top" style="padding:6px">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:2px solid #E5E5E5;border-radius:12px;overflow:hidden">
+        <tr><td style="background:${color};color:#fff;padding:8px 12px;font-family:Arial,sans-serif;font-size:11px;font-weight:bold;letter-spacing:1px;text-transform:uppercase">${KIND[p.kind]} · ${count[p.kind]}/${total[p.kind]}</td></tr>
+        <tr><td align="center" style="padding:10px 8px 4px"><img src="cid:qr${p.idx}@lsvb" width="170" height="170" alt="QR code ${esc(passCode(r.id, p.idx, p.token))}" style="display:block;width:170px;height:170px"></td></tr>
+        <tr><td align="center" style="padding:0 8px 10px;font-family:Arial,sans-serif">
+          <div style="font-size:14px;font-weight:bold;color:#163B6B">${esc(p.label)}</div>
+          <div style="font-size:11px;color:#5E6B80;font-family:monospace">${esc(passCode(r.id, p.idx, p.token))}</div>
+          <div style="font-size:11px;color:#5E6B80">${esc(eventName)}</div>
+        </td></tr>
+      </table></td>`;
+  });
+  const rows: string[] = [];
+  for (let i = 0; i < cells.length; i += 2) rows.push(`<tr>${cells[i]}${cells[i + 1] ?? '<td width="50%"></td>'}</tr>`);
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rows.join("")}</table>`;
+}
+
+/** Ticket de caisse : détail, remise, TVA par taux, mentions du club. */
+export function receiptBlock(r: ReceiptData) {
+  const td = "padding:6px 0;border-bottom:1px solid #E5E5E5;font-size:13px;color:#14243B;font-family:Arial,sans-serif";
+  const lines = r.lines.map((l) => `<tr><td style="${td}">${l.q} × ${esc(l.label)}<br><span style="color:#5E6B80;font-size:11px">${eur(l.unit_cents)} TTC · TVA ${pct(l.vat_rate ?? 0)}</span></td><td align="right" style="${td};white-space:nowrap">${eur(l.q * l.unit_cents)}</td></tr>`).join("");
+  const vat = r.vat.map((v) => `<tr><td style="padding:3px 0;font-size:12px;color:#5E6B80;font-family:Arial,sans-serif">TVA ${pct(v.rate)} · base HT ${eur(v.ht_cents)}</td><td align="right" style="padding:3px 0;font-size:12px;color:#5E6B80;font-family:Arial,sans-serif">${eur(v.vat_cents)}</td></tr>`).join("");
+  const l = r.legal;
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F3F5F9;border-radius:10px;padding:14px 16px">
+    <tr><td colspan="2" style="font-family:Arial,sans-serif;padding-bottom:8px"><div style="font-size:15px;font-weight:bold;color:#163B6B">Ticket de caisse ${esc(r.receipt_no ?? "")}</div>
+      <div style="font-size:12px;color:#5E6B80">${esc(l.legal_name ?? "")}${l.legal_address ? ` · ${esc(l.legal_address)}` : ""}${l.siret ? ` · SIRET ${esc(l.siret)}` : ""}${l.vat_number ? ` · TVA ${esc(l.vat_number)}` : ""}</div>
+      <div style="font-size:12px;color:#5E6B80">${r.paid_at ? new Date(r.paid_at).toLocaleString("fr-FR", { timeZone: "Europe/Paris" }) : ""} · commande ${esc(r.id)} · ${esc(PAY_LABEL[r.pay_method] ?? r.pay_method)}</div></td></tr>
+    ${lines}
+    ${r.discount_cents ? `<tr><td style="${td};color:#1E9E5A">Code promo ${esc(r.promo_code ?? "")}</td><td align="right" style="${td};color:#1E9E5A">−${eur(r.discount_cents)}</td></tr>` : ""}
+    <tr><td style="padding:10px 0 6px;font-size:15px;font-weight:bold;color:#163B6B;font-family:Arial,sans-serif">Total TTC</td><td align="right" style="padding:10px 0 6px;font-size:15px;font-weight:bold;color:#163B6B;font-family:Arial,sans-serif">${eur(r.total_cents)}</td></tr>
+    ${vat}
+  </table>`;
+}
+
+export function ticketsEmail(r: ReceiptData, url: string, receiptUrl: string) {
   const site = siteUrl();
+  const ev = r.event;
+  const when = ev ? longDate(ev.starts_at) : "";
   return {
-    subject: `${o.is_demo ? "[Essai] " : ""}Vos billets — ${ev?.name ?? "LSVB"}`,
+    subject: `${r.is_demo ? "[Essai] " : ""}Vos billets — ${ev?.name ?? "LSVB"}`,
     ...renderEmail({
-      preheader: `Commande ${o.id} confirmée : vos QR codes sont prêts.`,
-      kicker: `Commande ${o.id}`,
+      preheader: `Commande ${r.id} confirmée : vos ${r.passes.length} QR codes sont dans cet e-mail.`,
+      kicker: `Commande ${r.id}`,
       title: "Vos billets sont prêts",
       paragraphs: [
-        `Bonjour ${esc(o.buyer_name)}, merci pour votre commande${ev ? ` pour <strong>${esc(ev.name)}</strong>, ${esc(ev.when)}${ev.venue ? ` — ${esc(ev.venue)}` : ""}` : ""}.`,
-        o.is_demo ? "Commande d'essai : le paiement a été simulé, rien n'a été débité." : "Votre paiement est bien reçu.",
-        "Présentez un QR code par personne à l'entrée, et vos bons à la buvette. Ce lien est personnel : ne le partagez qu'avec les membres de votre groupe.",
+        `Bonjour ${esc(r.buyer_name)}, merci pour votre commande${ev ? ` pour <strong>${esc(ev.name)}</strong>, ${esc(when)}${ev.venue ? ` — ${esc(ev.venue)}` : ""}` : ""}.`,
+        r.is_demo ? "Commande d'essai : le paiement a été simulé, rien n'a été débité." : "Vos QR codes sont ci-dessous : <strong>rien à télécharger</strong>, montrez simplement cet e-mail sur votre téléphone. Un QR par personne à l'entrée, et vos bons à la buvette ou à la boutique.",
       ],
-      body: orderTable(o.lines, o.total_cents),
-      primary: { label: "Afficher mes QR codes", url },
-      secondary: hasAccount ? { label: "Mon compte", url: `${site}/compte` } : undefined,
+      body: `${qrGrid(r, ev?.name ?? "")}<div style="height:18px"></div>${receiptBlock(r)}`,
+      primary: { label: "Ouvrir mes billets en ligne", url },
+      secondary: r.user_id ? { label: "Mon compte", url: `${site}/compte` } : { label: "Ticket de caisse", url: receiptUrl },
+      note: "Ce lien et ces QR codes sont personnels : ne les partagez qu'avec les membres de votre groupe.",
     }),
   };
 }

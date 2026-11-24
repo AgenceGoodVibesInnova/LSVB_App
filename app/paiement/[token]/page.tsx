@@ -11,7 +11,7 @@ export const metadata = { title: "Paiement", robots: { index: false } };
 export default async function Paiement({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const { data: o } = await supabaseService()
-    .from("orders").select("id, status, total_cents, lines, buyer_name, sumup_checkout_id, events(name, starts_at)")
+    .from("orders").select("id, status, total_cents, discount_cents, promo_code, lines, buyer_name, sumup_checkout_id, events(name, starts_at)")
     .eq("access_token", token).maybeSingle();
   if (!o) notFound();
   if (o.status === "paid") redirect(`/billets/${token}`);
@@ -26,6 +26,7 @@ export default async function Paiement({ params }: { params: Promise<{ token: st
         <div className="small muted">{ev?.name}{ev ? ` · ${longDate(ev.starts_at)}` : ""}</div>
         <div style={{ margin: "14px 0" }}>
           {(o.lines as Line[]).map((l, i) => <div className="line small" key={i} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0" }}><span>{l.q} × {l.label}</span><b>{euros(l.q * l.unit_cents)}</b></div>)}
+          {o.discount_cents ? <div className="small" style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", color: "var(--ok)" }}><span>Code promo {o.promo_code}</span><b>−{euros(o.discount_cents)}</b></div> : null}
           <div className="tot" style={{ display: "flex", justifyContent: "space-between", borderTop: "2px solid var(--grey)", marginTop: 8, paddingTop: 10 }}>
             <b style={{ textTransform: "uppercase", fontSize: 13 }}>Montant à régler</b><b style={{ fontSize: 24, color: "var(--blue)" }}>{euros(o.total_cents)}</b>
           </div>

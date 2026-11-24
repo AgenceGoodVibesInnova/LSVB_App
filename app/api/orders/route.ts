@@ -2,10 +2,12 @@ import { NextResponse } from "next/server";
 import { supabaseService } from "@/lib/supabase/server";
 import { currentUser, requestStaff } from "@/lib/auth";
 import { createCheckout, sumupConfigured } from "@/lib/sumup";
-import { parseCartKey, MAX_ITEMS, HOLD_MINUTES, type Line, type Pass, type Prices } from "@/lib/catalog";
+import { kindOf, loadProducts, HOLD_MINUTES, type Pass } from "@/lib/catalog";
+import { checkPromo, priceCart, OrderError, type EventRow } from "@/lib/pricing";
+import { markPaid } from "@/lib/orders";
 import { code } from "@/lib/format";
 
-type Body = { eventId?: string; name?: string; email?: string; phone?: string; group?: string; items?: Record<string, number> };
+type Body = { eventId?: string; name?: string; email?: string; phone?: string; group?: string; promo?: string; items?: Record<string, number> };
 
 export async function POST(req: Request) {
   const body = (await req.json().catch(() => ({}))) as Body;
@@ -23,49 +25,53 @@ export async function POST(req: Request) {
 
   // Sans SumUp, seul le paiement simulé est possible, et uniquement pour l'équipe connectée (tests).
   const demo = !sumupConfigured();
-  if (demo && !staff)
-    return NextResponse.json({ error: "Le paiement en ligne n'est pas encore ouvert. Réessayez plus tard." }, { status: 503 });
+  if (demo && !staff) return NextResponse.json({ error: "Le paiement en ligne n'est pas encore ouvert. Réessayez plus tard." }, { status: 503 });
 
-  const { data: ev } = await admin.from("events").select("id, name, on_sale, prices").eq("id", body.eventId ?? "").maybeSingle();
-  if (!ev || !ev.on_sale) return NextResponse.json({ error: "Ce match n'est pas en vente." }, { status: 400 });
-  const prices = ev.prices as Prices;
+  const { data: ev } = await admin.from("events").select("id, name, on_sale, starts_at, sales_end_at, shop_end_at, prices").eq("id", body.eventId ?? "").maybeSingle();
+  if (!ev) return NextResponse.json({ error: "Ce match n'est pas en vente." }, { status: 400 });
 
-  // Les prix viennent toujours de la base, jamais du navigateur.
-  const lines: Line[] = [];
-  for (const [key, raw] of Object.entries(body.items ?? {})) {
-    const q = Number(raw);
-    if (!Number.isInteger(q) || q <= 0) continue;
-    const parsed = parseCartKey(key);
-    const unit = parsed ? prices[parsed.p.key] : null;
-    if (!parsed || unit == null) return NextResponse.json({ error: "Un article n'est plus disponible. Rechargez la page." }, { status: 409 });
-    lines.push({ k: parsed.p.key, drink: parsed.drink, label: parsed.drink ? `${parsed.p.label} (${parsed.drink})` : parsed.p.label, q, unit_cents: unit });
+  let priced;
+  try {
+    const products = await loadProducts(admin);
+    const promo = body.promo?.trim() ? await checkPromo(admin, body.promo, ev.id) : null;
+    priced = { ...priceCart(body.items ?? {}, ev as EventRow, products, promo), promo };
+  } catch (e) {
+    if (e instanceof OrderError) return NextResponse.json({ error: e.message }, { status: e.status });
+    throw e;
   }
-  const count = lines.reduce((n, l) => n + l.q, 0);
-  if (!count) return NextResponse.json({ error: "Votre panier est vide." }, { status: 400 });
-  if (count > MAX_ITEMS) return NextResponse.json({ error: `Maximum ${MAX_ITEMS} articles par commande.` }, { status: 400 });
-  const total = lines.reduce((s, l) => s + l.q * l.unit_cents, 0);
-  if (total <= 0) return NextResponse.json({ error: "Montant invalide." }, { status: 400 });
+  const { lines, subtotal, discount, total, vat, promo } = priced;
 
   const passes: Pass[] = [];
-  for (const l of lines) {
-    const kind = ["full", "reduced", "child"].includes(l.k) ? "ticket" : "food";
-    for (let i = 0; i < l.q; i++) passes.push({ idx: passes.length, kind, type: l.k, label: l.label, drink: l.drink, token: code(4) });
-  }
+  for (const l of lines)
+    for (let i = 0; i < l.q; i++) passes.push({ idx: passes.length, kind: kindOf(l.cat), type: l.k, label: l.label, drink: l.drink, token: code(4) });
 
+  const free = total === 0; // ex. code promo à 100 % (invitations)
   const id = code(8);
   const { data: created, error } = await admin.rpc("create_order", {
-    p_order: { id, event_id: ev.id, user_id: user?.id ?? null, buyer_name: name, email, phone: (body.phone ?? "").trim().slice(0, 30) || null, grp: (body.group ?? "").trim().slice(0, 120) || null, lines, total_cents: total, is_demo: demo, pay_method: demo ? "demo" : "sumup" },
+    p_order: {
+      id, event_id: ev.id, user_id: user?.id ?? null, buyer_name: name, email,
+      phone: (body.phone ?? "").trim().slice(0, 30) || null, grp: (body.group ?? "").trim().slice(0, 120) || null,
+      lines, subtotal_cents: subtotal, discount_cents: discount, promo_code: promo?.code ?? null, vat, total_cents: total,
+      is_demo: demo && !free, pay_method: free ? "gratuit" : demo ? "demo" : "sumup",
+    },
     p_passes: passes,
     p_hold_minutes: HOLD_MINUTES,
   });
   if (error) {
-    if (error.message.includes("SOLD_OUT")) return NextResponse.json({ error: "Il ne reste pas assez de places pour ce match." }, { status: 409 });
-    if (error.message.includes("EVENT_CLOSED")) return NextResponse.json({ error: "Ce match n'est plus en vente." }, { status: 409 });
+    const m = error.message;
+    if (m.includes("SOLD_OUT")) return NextResponse.json({ error: "Il ne reste pas assez de places pour ce match." }, { status: 409 });
+    if (m.includes("EVENT_CLOSED")) return NextResponse.json({ error: "Ce match n'est plus en vente." }, { status: 409 });
+    if (m.includes("PROMO_EXHAUSTED")) return NextResponse.json({ error: "Ce code promo a atteint son nombre maximum d'utilisations." }, { status: 409 });
+    if (m.includes("PROMO_INVALID")) return NextResponse.json({ error: "Ce code promo n'est plus valable." }, { status: 409 });
     console.error(error);
     return NextResponse.json({ error: "Commande impossible à enregistrer." }, { status: 500 });
   }
   const token = (Array.isArray(created) ? created[0] : created)?.access_token as string;
 
+  if (free) {
+    await markPaid(admin, id, "gratuit");
+    return NextResponse.json({ id, token, paid: true });
+  }
   if (demo) {
     await admin.from("orders").update({ sumup_checkout_id: `demo-${id}` }).eq("id", id);
     return NextResponse.json({ id, token });

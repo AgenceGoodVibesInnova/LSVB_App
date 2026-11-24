@@ -11,7 +11,9 @@ export async function POST(req: Request) {
   const staff = await requestStaff("scan");
   if (!staff) return NextResponse.json({ error: "Connexion de l'équipe requise." }, { status: 401 });
   const b = (await req.json().catch(() => ({}))) as { code?: string; eventId?: string; mode?: string };
-  const mode = b.mode === "food" ? "food" : "ticket";
+  const mode = b.mode === "food" ? "food" : b.mode === "shop" ? "shop" : "ticket";
+  const POSTE = { ticket: "l'entrée", food: "la buvette", shop: "le stand boutique" } as const;
+  const TITRE = { ticket: "Billet d'entrée", food: "Bon buvette", shop: "Bon boutique" } as const;
   const m = String(b.code ?? "").toUpperCase().match(CODE_RE);
   if (!m) return reply({ result: "bad", title: "QR non reconnu", detail: "Ce code n'est pas un billet LSVB" });
   const [, oid, idxS, tok] = m;
@@ -30,13 +32,10 @@ export async function POST(req: Request) {
   if (o.event_id !== b.eventId)
     return reply({ result: "bad", title: "Mauvais match", detail: `Valable pour : ${ev?.name ?? "un autre match"}`, who });
   if (o.status !== "paid") return reply({ result: "bad", title: "Non payé", detail: "Le paiement de cette commande n'est pas confirmé", who });
-  if (p.kind !== mode)
-    return reply({
-      result: "warn",
-      title: p.kind === "food" ? "Bon buvette" : "Billet d'entrée",
-      detail: p.kind === "food" ? "À présenter à la buvette, pas à l'entrée" : "Ce QR est un billet d'entrée, pas un bon buvette",
-      who: `${p.label} · ${who}`,
-    });
+  if (p.kind !== mode) {
+    const k = p.kind as keyof typeof POSTE;
+    return reply({ result: "warn", title: TITRE[k], detail: `À présenter à ${POSTE[k]}, pas à ${POSTE[mode]}`, who: `${p.label} · ${who}` });
+  }
 
   // Passage enregistré une seule fois, même si deux appareils scannent en même temps
   const { data: done } = await admin
@@ -49,7 +48,7 @@ export async function POST(req: Request) {
     const at = again?.used_at ? new Date(again.used_at) : null;
     return reply({
       result: "bad",
-      title: mode === "food" ? "Déjà servi" : "Déjà scanné",
+      title: mode === "ticket" ? "Déjà scanné" : mode === "food" ? "Déjà servi" : "Déjà remis",
       detail: at ? `Le ${at.toLocaleDateString("fr-FR", { timeZone: "Europe/Paris" })} à ${at.toLocaleTimeString("fr-FR", { timeZone: "Europe/Paris" })}` : undefined,
       who: `${p.label} · ${who}`,
     });
@@ -57,7 +56,7 @@ export async function POST(req: Request) {
   const { count } = await admin.from("passes").select("idx", { count: "exact", head: true }).eq("order_id", oid).eq("kind", p.kind);
   return reply({
     result: "ok",
-    title: mode === "food" ? "À servir" : "Entrée validée",
+    title: mode === "food" ? "À servir" : mode === "shop" ? "À remettre" : "Entrée validée",
     detail: p.label,
     who: who + (count && count > 1 ? ` · commande de ${count}` : ""),
     code: `${oid}-${idx}-${tok}`,

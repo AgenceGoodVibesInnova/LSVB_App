@@ -21,7 +21,7 @@ with sync_playwright() as p:
     pg.goto(BASE); pg.wait_for_load_state("networkidle")
     check("ouvre très bientôt" not in pg.content() and "Paiement simulé" not in pg.content(), "vente ouverte au public")
     pg.locator(".prod", has_text="Tarif réduit").locator("button[aria-label^='Ajouter']").click()
-    pg.locator(".prod", has_text="Boisson").last.locator("button[aria-label^='Ajouter']").click(); pg.click(".drink:has-text('Pepsi')")
+    pg.locator("button[aria-label='Ajouter Pepsi']").click()
     pg.fill("input[autocomplete=name]", "Paul Durand"); pg.fill("input[autocomplete=email]", "paul@test.local")
     pg.click("button:has-text('Payer ma commande')"); pg.wait_for_url(re.compile("/paiement/"))
     token = pg.url.rsplit("/", 1)[1]

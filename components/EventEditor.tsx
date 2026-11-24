@@ -1,31 +1,52 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { PRODUCTS, type Prices } from "@/lib/catalog";
-import { shortDate, toParisInput } from "@/lib/format";
+import { CATEGORIES, SHOP_DAYS_BEFORE, type Prices } from "@/lib/catalog";
+import { euros, longDate, shortDate, toParisInput } from "@/lib/format";
 
-export type AdminEvent = { id: string; name: string; startsAt: string; venue: string; capacity: number; onSale: boolean; journee: number | null; prices: Prices; sold: number };
+export type AdminEvent = {
+  id: string; name: string; startsAt: string; venue: string; capacity: number; onSale: boolean; journee: number | null; prices: Prices; sold: number;
+  salesEndAt: string | null; shopEndAt: string | null;
+};
+export type CatalogItem = { id: string; category: string; name: string; price_cents: number; active: boolean };
 
-const DEFAULT: Record<string, string> = { full: "10", reduced: "7", child: "4", bt: "8", bs: "5", b: "2.5", s: "5", t: "8" };
-const blank = () => ({ id: "", name: "", date: "", venue: "Arena Stadium — Les Sables d'Olonne", capacity: "", journee: "", onSale: true, prices: { ...DEFAULT } });
-type Form = ReturnType<typeof blank>;
+type Form = {
+  id: string; name: string; date: string; venue: string; capacity: string; journee: string; onSale: boolean;
+  salesEnd: string; shopEnd: string;
+  offer: Record<string, { on: boolean; price: string }>;
+};
 
-/** Liste des matchs et formulaire de création / modification (prix en euros). */
-export default function EventEditor({ events }: { events: AdminEvent[] }) {
+/** Liste des matchs et formulaire : date, jauge, fins de vente, produits proposés et prix spéciaux. */
+export default function EventEditor({ events, catalog }: { events: AdminEvent[]; catalog: CatalogItem[] }) {
   const router = useRouter();
+  const blank = (): Form => ({
+    id: "", name: "", date: "", venue: "Arena Stadium — Les Sables d'Olonne", capacity: "", journee: "", onSale: true, salesEnd: "", shopEnd: "",
+    offer: Object.fromEntries(catalog.map((p) => [p.id, { on: true, price: "" }])),
+  });
+  const fromEvent = (e: AdminEvent): Form => ({
+    id: e.id, name: e.name, date: toParisInput(e.startsAt), venue: e.venue, capacity: e.capacity ? String(e.capacity) : "", journee: e.journee ? String(e.journee) : "",
+    onSale: e.onSale, salesEnd: e.salesEndAt ? toParisInput(e.salesEndAt) : "", shopEnd: e.shopEndAt ? toParisInput(e.shopEndAt) : "",
+    offer: Object.fromEntries(catalog.map((p) => {
+      const has = Object.prototype.hasOwnProperty.call(e.prices ?? {}, p.id);
+      const v = has ? e.prices[p.id] : undefined;
+      return [p.id, { on: v !== null, price: typeof v === "number" ? String(v / 100) : "" }];
+    })),
+  });
   const [f, setF] = useState<Form>(blank());
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
 
-  function edit(e: AdminEvent) {
-    const prices: Record<string, string> = {};
-    PRODUCTS.forEach((p) => { const v = e.prices[p.key]; prices[p.key] = v == null ? "" : String(v / 100); });
-    setF({ id: e.id, name: e.name, date: toParisInput(e.startsAt), venue: e.venue, capacity: e.capacity ? String(e.capacity) : "", journee: e.journee ? String(e.journee) : "", onSale: e.onSale, prices });
-    setErr("");
-    document.getElementById("ev-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  function payload(x: Form) {
+    const prices: Record<string, number | null> = {};
+    for (const p of catalog) {
+      const o = x.offer[p.id] ?? { on: true, price: "" };
+      if (!o.on) prices[p.id] = null;
+      else if (o.price.trim() !== "") prices[p.id] = Math.round(Number(o.price.replace(",", ".")) * 100);
+    }
+    return { id: x.id, name: x.name, date: x.date, venue: x.venue, capacity: x.capacity, journee: x.journee, onSale: x.onSale, salesEnd: x.salesEnd, shopEnd: x.shopEnd, prices };
   }
-  async function save(patch?: Partial<Form>, target?: Form) {
-    const body = { ...(target ?? f), ...patch };
+  async function save(target?: Form) {
+    const body = payload(target ?? f);
     setBusy(true); setErr("");
     const r = await fetch("/api/admin/events", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const d = await r.json().catch(() => ({}));
@@ -34,15 +55,8 @@ export default function EventEditor({ events }: { events: AdminEvent[] }) {
     if (!target) setF(blank());
     router.refresh();
   }
-  function toggle(e: AdminEvent) {
-    const prices: Record<string, string> = {};
-    PRODUCTS.forEach((p) => { const v = e.prices[p.key]; prices[p.key] = v == null ? "" : String(v / 100); });
-    save({ onSale: !e.onSale }, { id: e.id, name: e.name, date: toParisInput(e.startsAt), venue: e.venue, capacity: String(e.capacity), journee: e.journee ? String(e.journee) : "", onSale: e.onSale, prices });
-  }
   const set = (k: keyof Form, v: string | boolean) => setF({ ...f, [k]: v });
-  const price = (k: string, label: string) => (
-    <label className="f" key={k}><span>{label}</span><input type="number" step="0.5" min="0" value={f.prices[k] ?? ""} onChange={(e) => setF({ ...f, prices: { ...f.prices, [k]: e.target.value } })} /></label>
-  );
+  const shopDefault = f.date ? (() => { const d = new Date(f.date); d.setDate(d.getDate() - SHOP_DAYS_BEFORE); return d.toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }); })() : `${SHOP_DAYS_BEFORE} jours avant le match`;
 
   return (
     <div className="grid2">
@@ -54,10 +68,10 @@ export default function EventEditor({ events }: { events: AdminEvent[] }) {
             {events.length ? events.map((e) => (
               <tr key={e.id}>
                 <td style={{ whiteSpace: "nowrap" }}>{shortDate(e.startsAt)}</td>
-                <td><b>{e.name}</b><div className="small muted">{e.journee ? `J${e.journee} · ` : ""}{e.venue}</div></td>
+                <td><b>{e.name}</b><div className="small muted">{e.journee ? `J${e.journee} · ` : ""}buvette jusqu&apos;au {shortDate(e.shopEndAt ?? new Date(new Date(e.startsAt).getTime() - SHOP_DAYS_BEFORE * 86400e3).toISOString())}</div></td>
                 <td className="num">{e.sold}{e.capacity ? ` / ${e.capacity}` : ""}</td>
-                <td><label className="switch"><input type="checkbox" checked={e.onSale} disabled={busy} onChange={() => toggle(e)} /></label></td>
-                <td><button className="btn ghost sm" onClick={() => edit(e)}>Modifier</button></td>
+                <td><label className="switch"><input type="checkbox" aria-label={`Vente ouverte : ${e.name}`} checked={e.onSale} disabled={busy} onChange={() => save({ ...fromEvent(e), onSale: !e.onSale })} /></label></td>
+                <td><button className="btn ghost sm" onClick={() => { setF(fromEvent(e)); setErr(""); document.getElementById("ev-form")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}>Modifier</button></td>
               </tr>
             )) : <tr><td colSpan={5} className="muted">Aucun match.</td></tr>}
           </tbody>
@@ -74,14 +88,36 @@ export default function EventEditor({ events }: { events: AdminEvent[] }) {
           <label className="f" style={{ flex: 3 }}><span>Lieu</span><input type="text" value={f.venue} onChange={(e) => set("venue", e.target.value)} /></label>
           <label className="f"><span>Journée</span><input type="number" min="1" value={f.journee} onChange={(e) => set("journee", e.target.value)} /></label>
         </div>
-        <div className="subhead" style={{ marginTop: 4 }}>Prix des billets (€)</div>
-        <div className="row">{price("full", "Plein")}{price("reduced", "Réduit")}{price("child", "Enfant")}</div>
-        <div className="subhead">Prix buvette (€) <span style={{ textTransform: "none", letterSpacing: 0, fontWeight: 600 }}>— vide = produit masqué</span></div>
-        <div className="row">{price("bt", "Tacos + boisson")}{price("bs", "Sandwich + boisson")}</div>
-        <div className="row">{price("b", "Boisson")}{price("s", "Sandwich")}{price("t", "Tacos")}</div>
-        <label className="switch" style={{ margin: "4px 0 14px" }}><input type="checkbox" checked={f.onSale} onChange={(e) => set("onSale", e.target.checked)} /> Ouvert à la vente</label>
+        <div className="subhead" style={{ marginTop: 4 }}>Fins de vente en ligne</div>
+        <div className="row">
+          <label className="f"><span>Billets</span><input type="datetime-local" value={f.salesEnd} onChange={(e) => set("salesEnd", e.target.value)} /><small className="muted">Vide : jusqu&apos;au début du match</small></label>
+          <label className="f"><span>Buvette et boutique</span><input type="datetime-local" value={f.shopEnd} onChange={(e) => set("shopEnd", e.target.value)} /><small className="muted">Vide : {shopDefault}</small></label>
+        </div>
+        <div className="subhead">Produits proposés <span style={{ textTransform: "none", letterSpacing: 0, fontWeight: 600 }}>— prix vide = prix du catalogue</span></div>
+        <div className="offer">
+          {CATEGORIES.map((c) => {
+            const list = catalog.filter((p) => p.category === c.key);
+            if (!list.length) return null;
+            return (
+              <div key={c.key}>
+                <div className="small" style={{ fontWeight: 800, color: "var(--blue)", margin: "8px 0 2px" }}>{c.label}</div>
+                {list.map((p) => {
+                  const o = f.offer[p.id] ?? { on: true, price: "" };
+                  return (
+                    <div className="offer-row" key={p.id}>
+                      <label className="switch" style={{ flex: 1 }}><input type="checkbox" checked={o.on} onChange={(e) => setF({ ...f, offer: { ...f.offer, [p.id]: { ...o, on: e.target.checked } } })} /> {p.name}{p.active ? "" : " (désactivé au catalogue)"}</label>
+                      <input type="number" step="0.5" min="0" aria-label={`Prix spécial ${p.name}`} placeholder={euros(p.price_cents)} value={o.price} disabled={!o.on} onChange={(e) => setF({ ...f, offer: { ...f.offer, [p.id]: { ...o, price: e.target.value } } })} />
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+        <label className="switch" style={{ margin: "12px 0 14px" }}><input type="checkbox" checked={f.onSale} onChange={(e) => set("onSale", e.target.checked)} /> Ouvert à la vente</label>
         <div className="row"><button className="btn pri" disabled={busy} onClick={() => save()}>Enregistrer</button><button className="btn ghost" onClick={() => { setF(blank()); setErr(""); }}>{f.id ? "Annuler" : "Vider"}</button></div>
         {err ? <div className="err">{err}</div> : null}
+        {f.id && f.date ? <p className="small muted">Match le {longDate(new Date(f.date).toISOString())}.</p> : null}
       </div>
     </div>
   );

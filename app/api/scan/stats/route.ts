@@ -9,7 +9,7 @@ export async function GET(req: Request) {
   const { data } = await supabaseService()
     .from("passes").select("kind, used_at, orders!inner(event_id, status)")
     .eq("orders.event_id", event).eq("orders.status", "paid").limit(20000);
-  const s = { ticket: { n: 0, u: 0 }, food: { n: 0, u: 0 } };
-  for (const p of data ?? []) { const k = p.kind as "ticket" | "food"; s[k].n++; if (p.used_at) s[k].u++; }
+  const s = { ticket: { n: 0, u: 0 }, food: { n: 0, u: 0 }, shop: { n: 0, u: 0 } };
+  for (const p of data ?? []) { const k = p.kind as "ticket" | "food" | "shop"; s[k].n++; if (p.used_at) s[k].u++; }
   return NextResponse.json(s);
 }

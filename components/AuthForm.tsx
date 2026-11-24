@@ -7,7 +7,8 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 export default function AuthForm({ next, notice }: { next: string; notice?: string }) {
   const router = useRouter();
   const [mode, setMode] = useState<"login" | "signup">("login");
-  const [f, setF] = useState({ first_name: "", last_name: "", phone: "", email: "", password: "" });
+  const [f, setF] = useState({ first_name: "", last_name: "", phone: "", postal_code: "", email: "", password: "" });
+  const [optIn, setOptIn] = useState(false);
   const [msg, setMsg] = useState<{ ok?: string; err?: string }>(notice ? { err: notice } : {});
   const [busy, setBusy] = useState(false);
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value });
@@ -31,7 +32,7 @@ export default function AuthForm({ next, notice }: { next: string; notice?: stri
       router.push(next); router.refresh();
       return;
     }
-    const res = await fetch("/api/auth/signup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...f, next }) });
+    const res = await fetch("/api/auth/signup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...f, marketing_opt_in: optIn, next }) });
     const data = await res.json().catch(() => ({}));
     setBusy(false);
     if (!res.ok) return setMsg({ err: data.error ?? "L'inscription n'a pas abouti. Réessayez." });
@@ -51,10 +52,19 @@ export default function AuthForm({ next, notice }: { next: string; notice?: stri
             <label className="f"><span>Prénom</span><input type="text" required autoComplete="given-name" value={f.first_name} onChange={set("first_name")} /></label>
             <label className="f"><span>Nom</span><input type="text" required autoComplete="family-name" value={f.last_name} onChange={set("last_name")} /></label>
           </div>
-          <label className="f"><span>Téléphone</span><input type="tel" autoComplete="tel" value={f.phone} onChange={set("phone")} /></label>
+          <div className="row">
+            <label className="f"><span>Téléphone</span><input type="tel" autoComplete="tel" value={f.phone} onChange={set("phone")} /></label>
+            <label className="f"><span>Code postal</span><input type="text" inputMode="numeric" autoComplete="postal-code" maxLength={10} value={f.postal_code} onChange={set("postal_code")} /></label>
+          </div>
         </>) : null}
         <label className="f"><span>E-mail</span><input type="email" required autoComplete="email" value={f.email} onChange={set("email")} /></label>
         <label className="f"><span>Mot de passe{mode === "signup" ? " (8 caractères minimum)" : ""}</span><input type="password" required minLength={mode === "signup" ? 8 : undefined} autoComplete={mode === "signup" ? "new-password" : "current-password"} value={f.password} onChange={set("password")} /></label>
+        {mode === "signup" ? (
+          <label className="switch" style={{ alignItems: "flex-start", marginBottom: 14, fontWeight: 500 }}>
+            <input type="checkbox" checked={optIn} onChange={(e) => setOptIn(e.target.checked)} />
+            <span className="small">J&apos;accepte de recevoir par e-mail les actualités et offres des Sables Vendée Basket (désinscription possible à tout moment).</span>
+          </label>
+        ) : null}
         {mode === "login" ? <div style={{ textAlign: "right", marginTop: -4, marginBottom: 12 }}><button type="button" onClick={forgot} className="linkbtn">Mot de passe oublié ?</button></div> : null}
         {msg.err ? <p className="err" role="alert">{msg.err}</p> : null}
         {msg.ok ? <p className="okbox" role="status">{msg.ok}</p> : null}

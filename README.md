@@ -1,8 +1,8 @@
 # Billetterie LSVB
 
-Billetterie en ligne des matchs des Sables Vendée Basket à l'Arena : achat de billets et de la buvette
-(formules tacos ou sandwich + boisson offerte, boissons au choix), paiement SumUp, QR codes, comptes clients,
-scan à l'entrée et à la buvette, espace administrateur.
+Billetterie en ligne des matchs des Sables Vendée Basket à l'Arena : billets, buvette (menus avec boisson offerte,
+snacks, boissons, confiserie) et boutique du club (t-shirt avec tailles), codes promo, paiement SumUp, QR codes et
+ticket de caisse par e-mail, comptes clients, scan à l'entrée / à la buvette / à la boutique, rapport de TVA par match.
 
 - **Code** : ce dépôt GitHub
 - **Application** : Next.js, hébergée sur Vercel
@@ -14,20 +14,37 @@ scan à l'entrée et à la buvette, espace administrateur.
 
 | Adresse | Rôle |
 |---|---|
-| `/` | Achat : choix du match, billets, buvette (fenêtre de choix de la boisson), coordonnées (pré-remplies si connecté) |
+| `/` | Achat : choix du match, billets, buvette, boutique (fenêtre de choix de la boisson ou de la taille), code promo, coordonnées |
 | `/paiement/[lien]` | Paiement SumUp (carte bancaire) |
-| `/billets/[lien]` | QR codes : un par billet et un par article buvette (lien privé, aussi envoyé par e-mail) |
+| `/billets/[lien]` | QR codes : un par billet et un par article buvette / boutique (lien privé ; tous les QR sont aussi dans l'e-mail) |
+| `/recu/[lien]` | Ticket de caisse numéroté (LSVB-2026-000001), détail TVA, imprimable |
 | `/mes-billets` | Retrouver ses billets sans compte (n° de commande + e-mail), les renvoyer par e-mail |
 | `/connexion` | Compte client : connexion, création de compte, mot de passe oublié |
-| `/compte` | Espace client : prochains matchs et QR codes, historique, informations, mot de passe |
+| `/compte` | Espace client : prochains matchs et QR codes, anciens achats et tickets de caisse, informations, mot de passe |
 | `/admin/connexion` | Connexion de l'équipe (lien « Espace administrateur » en pied de page) |
 | `/admin` | Tableau de bord : chiffre d'affaires, billets, buvette, remplissage des prochains matchs |
-| `/admin/matchs` | Matchs, heures, jauges, prix, ouverture de la vente |
-| `/admin/commandes` | Commandes par match, recherche, encaissement sur place, renvoi des billets, export Excel |
+| `/admin/matchs` | Matchs, heures, jauges, fins de vente (billets / buvette-boutique), produits proposés et prix spéciaux par match |
+| `/admin/produits` | Catalogue : billets, menus, snacks, boissons, confiserie, boutique ; prix TTC, taux de TVA, choix (boisson offerte, tailles) |
+| `/admin/promos` | Codes promo illimités : % ou €, billets ou toute la commande, un match ou tous, dates de validité, nombre d'utilisations |
+| `/admin/commandes` | Commandes par match, bon de préparation (menus, boissons, boutique), recherche, encaissement sur place, export Excel |
+| `/admin/rapports` | Rapport de TVA par match ou pour la saison : TVA par taux, détail par produit, règlements, codes promo ; CSV, impression, envoi par e-mail |
 | `/admin/clients` | Fichier clients (avec ou sans compte), recherche, export Excel |
 | `/admin/equipe` | Invitations par e-mail, niveaux Administrateur / Scanner, retrait d'accès |
-| `/admin/reglages` | Compte client obligatoire ou non, e-mail de contact, état des branchements SumUp et e-mail |
-| `/scanner` | Contrôle des QR : mode Entrée ou Buvette, caméra, photo ou douchette, compteurs en direct |
+| `/admin/reglages` | Compte client obligatoire ou non, mentions du ticket de caisse (SIRET, TVA), e-mail des rapports |
+| `/scanner` | Contrôle des QR : mode Entrée, Buvette ou Boutique, caméra, photo ou douchette, compteurs en direct |
+
+## Ventes, TVA et codes promo
+
+- **Catalogue** : chaque produit a un prix TTC et un taux de TVA. Taux proposés par défaut (à valider avec
+  l'expert-comptable) : billetterie d'une manifestation sportive 5,5 % ; menus, snacks et boissons sans alcool
+  vendus à emporter 10 % ; confiserie et boutique 20 %.
+- **Fins de vente** : par match, les billets se vendent jusqu'au début du match (ou la date choisie) ; la buvette
+  et la boutique s'arrêtent par défaut **3 jours avant** pour laisser le temps de commander la marchandise.
+- **Codes promo** : saisis par le client avant le paiement. Le montant de la remise est réparti sur les lignes
+  concernées pour que la TVA reste juste. Un code à 100 % valide la commande sans paiement (invitations).
+- **Ticket de caisse** : numérotation continue par année, attribuée au paiement ; envoyé dans l'e-mail avec tous
+  les QR codes (images intégrées, rien à télécharger) et disponible dans « Mon compte ».
+- **Rapport de TVA** : commandes payées uniquement, commandes d'essai (paiement simulé) exclues.
 
 ## Comptes
 
@@ -42,7 +59,8 @@ scan à l'entrée et à la buvette, espace administrateur.
 
 ### 1. Supabase
 1. Créer un projet sur supabase.com (région Europe).
-2. SQL Editor : exécuter `supabase/migrations/0001_init.sql`, puis `0002_comptes.sql`, puis `supabase/matchs-2026-2027.sql`
+2. SQL Editor : exécuter dans l'ordre `supabase/migrations/0001_init.sql`, `0002_comptes.sql`, `0003_catalogue_promos_tva.sql`,
+   puis `supabase/matchs-2026-2027.sql`
    (les 7 matchs à domicile NM1 restants, heure 20:00 par défaut).
 3. Authentication > URL Configuration : *Site URL* = l'adresse du site (ex. `https://billetterie.lsvb.fr`),
    et l'ajouter avec `/**` aux *Redirect URLs* (ainsi que l'adresse Vercel).
@@ -82,7 +100,9 @@ Dans `/admin/equipe`, inviter chaque personne par e-mail avec le niveau **Scanne
 **Administrateur**. Elle reçoit un lien pour choisir son mot de passe, puis arrive sur le scanner ou la gestion.
 
 ### 8. Ouvrir la vente
-Dans `/admin/matchs`, vérifier les heures, prix et jauge de chaque match, et cocher « En vente ».
+Dans `/admin/reglages`, renseigner les mentions du ticket de caisse (nom, adresse, SIRET, n° de TVA).
+Dans `/admin/produits`, vérifier prix et taux de TVA. Dans `/admin/matchs`, vérifier heures, jauges et fins de vente,
+et cocher « En vente ».
 Dans `/admin/reglages`, choisir si le compte client est obligatoire.
 
 ## Le jour du match
@@ -103,7 +123,9 @@ npm run dev
 
 ```
 bash tests/local/demarrer.sh       # copie locale complète : PostgreSQL 16, Supabase Auth, e-mails (MailDev), site
-python3 tests/e2e/parcours.py      # achat (paiement simulé), e-mail, QR, scan entrée/buvette, gestion, mobile
+python3 tests/e2e/parcours.py      # achat (paiement simulé), e-mail avec QR et ticket de caisse, scan, gestion, mobile
+python3 tests/e2e/catalogue.py     # produits, prix par match, codes promo, fins de vente, TVA, ticket de caisse,
+                                   # boutique, bon de préparation, rapport de TVA (CSV et e-mail)
 # chemin SumUp réel contre un faux serveur SumUp :
 python3 tests/local/faux-sumup.py &
 #   relancer le site avec SUMUP_API_KEY=sk_test_local SUMUP_MERCHANT_CODE=MTEST SUMUP_API_BASE=http://127.0.0.1:4010

@@ -4,7 +4,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 const LINKS: [string, string, string][] = [
-  ["/admin", "Tableau de bord", "📊"], ["/admin/matchs", "Matchs et prix", "🏀"], ["/admin/commandes", "Commandes", "🧾"],
+  ["/admin", "Tableau de bord", "📊"], ["/admin/matchs", "Matchs", "🏀"], ["/admin/produits", "Produits et TVA", "🌮"],
+  ["/admin/promos", "Codes promo", "🏷️"], ["/admin/commandes", "Commandes", "🧾"], ["/admin/rapports", "Rapport de TVA", "📑"],
   ["/admin/clients", "Clients", "👥"], ["/admin/equipe", "Équipe", "🦺"], ["/admin/reglages", "Réglages", "⚙️"], ["/scanner", "Scanner", "📷"],
 ];
 

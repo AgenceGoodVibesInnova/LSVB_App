@@ -18,6 +18,7 @@ export default async function Clients({ searchParams }: { searchParams: Promise<
         <div className="stat"><span>Clients</span><b>{all.length}</b></div>
         <div className="stat"><span>Avec un compte</span><b>{all.filter((c) => c.account).length}</b></div>
         <div className="stat o"><span>Fidèles (2 matchs et +)</span><b>{all.filter((c) => c.orders >= 2).length}</b></div>
+        <div className="stat"><span>Acceptent les actualités</span><b>{all.filter((c) => c.optIn).length}</b></div>
       </div>
       <div className="card">
         <div className="row" style={{ justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
@@ -29,8 +30,8 @@ export default async function Clients({ searchParams }: { searchParams: Promise<
           <tbody>
             {list.length ? list.map((c) => (
               <tr key={c.email}>
-                <td><b>{c.name || "—"}</b><div className="small muted">{c.email}{c.phone ? ` · ${c.phone}` : ""}</div></td>
-                <td>{c.account ? <span className="pill ok">Compte</span> : <span className="pill blue">Sans compte</span>}</td>
+                <td><b>{c.name || "—"}</b><div className="small muted">{c.email}{c.phone ? ` · ${c.phone}` : ""}{c.postal ? ` · ${c.postal}` : ""}</div></td>
+                <td>{c.account ? <span className="pill ok">Compte</span> : <span className="pill blue">Sans compte</span>}{c.optIn ? <div className="small" style={{ color: "var(--ok)" }}>✉ actualités</div> : null}</td>
                 <td className="num">{c.orders}</td>
                 <td className="num">{c.tickets}</td>
                 <td className="num"><b>{euros(c.spent)}</b></td>
