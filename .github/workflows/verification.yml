@@ -15,7 +15,7 @@ jobs:
     env:
       NEXT_PUBLIC_SUPABASE_URL: https://exemple.supabase.co
       NEXT_PUBLIC_SUPABASE_ANON_KEY: cle-de-test
-      NEXT_PUBLIC_SITE_URL: https://billetterie.lsvb.fr
+      NEXT_PUBLIC_SITE_URL: https://app.lsvb.fr
       SUPABASE_SERVICE_ROLE_KEY: cle-de-test
       NEXT_TELEMETRY_DISABLED: "1"
     steps:

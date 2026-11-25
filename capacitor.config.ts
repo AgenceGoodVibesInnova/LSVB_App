@@ -5,7 +5,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
  * avec les notifications, la caméra (scanner) et l'accès aux réglages du téléphone.
  * Mettre ici l'adresse définitive du site (APP_URL) avant de construire les applications.
  */
-const url = process.env.APP_URL ?? "https://billetterie.lsvb.fr";
+const url = process.env.APP_URL ?? "https://app.lsvb.fr";
 
 const config: CapacitorConfig = {
   appId: "fr.lsvb.billetterie",

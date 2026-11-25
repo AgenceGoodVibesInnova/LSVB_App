@@ -2,7 +2,7 @@
 // la page hors connexion reçoit l'adresse du site (APP_URL) pour le bouton « Réessayer ».
 import { readFileSync, writeFileSync } from "node:fs";
 
-const url = process.env.APP_URL ?? "https://billetterie.lsvb.fr";
+const url = process.env.APP_URL ?? "https://app.lsvb.fr";
 if (!/^https:\/\/[^/]+/.test(url)) {
   console.error(`APP_URL doit commencer par https:// (reçu : ${url})`);
   process.exit(1);

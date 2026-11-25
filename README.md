@@ -53,12 +53,12 @@ autorisé dans l'application : billets, buvette et t-shirts sont des biens et se
 
 ### Construire les applications
 Identifiant : `fr.lsvb.billetterie` · Nom : « LSVB Billetterie ». L'adresse du site est lue dans `APP_URL`
-(par défaut `https://billetterie.lsvb.fr`) : la mettre à jour une fois le domaine choisi.
+(par défaut `https://app.lsvb.fr`) : la mettre à jour une fois le domaine choisi.
 
 ```bash
 npm install
-APP_URL=https://billetterie.lsvb.fr npm run app:android   # ouvre Android Studio
-APP_URL=https://billetterie.lsvb.fr npm run app:ios       # ouvre Xcode (Mac obligatoire)
+APP_URL=https://app.lsvb.fr npm run app:android   # ouvre Android Studio
+APP_URL=https://app.lsvb.fr npm run app:ios       # ouvre Xcode (Mac obligatoire)
 npm run app:icones                                         # régénère icônes et écran de démarrage depuis assets/
 ```
 
@@ -113,7 +113,7 @@ s'enregistrent alors dans la table `devices`. Le bouton d'envoi « commande prê
 2. SQL Editor : exécuter dans l'ordre `supabase/migrations/0001_init.sql`, `0002_comptes.sql`, `0003_catalogue_promos_tva.sql`, `0004_pass_profil.sql`, `0005_relance_suppression_app.sql`,
    puis `supabase/matchs-2026-2027.sql`
    (les 7 matchs à domicile NM1 restants, heure 20:00 par défaut).
-3. Authentication > URL Configuration : *Site URL* = l'adresse du site (ex. `https://billetterie.lsvb.fr`),
+3. Authentication > URL Configuration : *Site URL* = l'adresse du site (ex. `https://app.lsvb.fr`),
    et l'ajouter avec `/**` aux *Redirect URLs* (ainsi que l'adresse Vercel).
 4. Récupérer l'URL du projet, la clé « publishable » et la clé « secret » (Project Settings > API).
 
@@ -138,7 +138,7 @@ Sans ces réglages, les clients ne peuvent pas confirmer leur compte et les bill
 3. Déployer.
 
 ### 5. Nom de domaine
-Dans Vercel > Settings > Domains, ajouter par exemple `billetterie.lsvb.fr`, puis recopier chez le registraire
+Dans Vercel > Settings > Domains, ajouter par exemple `app.lsvb.fr`, puis recopier chez le registraire
 les enregistrements DNS indiqués par Vercel. Mettre la même adresse dans `NEXT_PUBLIC_SITE_URL`.
 
 ### 6. Premier administrateur
