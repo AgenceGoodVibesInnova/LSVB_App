@@ -33,16 +33,56 @@ ticket de caisse par e-mail, comptes clients, scan à l'entrée / à la buvette 
 | `/admin/clients` | Fichier clients (avec ou sans compte), recherche, export Excel |
 | `/admin/equipe` | Invitations par e-mail, niveaux Administrateur / Scanner, retrait d'accès |
 | `/admin/reglages` | Compte client obligatoire ou non, mentions du ticket de caisse (SIRET, TVA), e-mail des rapports |
+| `/confidentialite` | Politique de confidentialité (exigée par l'App Store et Google Play) |
 | `/admin/scanner` | Contrôle des QR : mode Entrée, Buvette ou Boutique (toute la commande s'affiche), caméra, photo ou douchette, compteurs en direct. Seule page ouverte aux bénévoles (niveau Scanner) |
 
-## Application sur téléphone
+## Applications iOS et Android (App Store, Google Play)
 
-Le site s'installe sur l'écran d'accueil du téléphone (menu « Partager › Sur l'écran d'accueil » sur iPhone,
-« Installer l'application » sur Android) et s'ouvre alors comme une application, sur la page à deux boutons.
-Dans ce mode, l'inscription et « Mon profil » affichent « Pensez à activer vos notifications » : le bouton
-déclenche la demande d'autorisation du téléphone, et si elle a été refusée, indique le chemin dans les réglages.
-Une application web ne peut pas ouvrir elle-même les réglages du téléphone : il faudrait pour cela une application
-publiée sur l'App Store et le Play Store. L'envoi effectif des notifications « commande prête » reste à brancher.
+Les applications (dossiers `ios/` et `android/`, outil Capacitor) ouvrent la billetterie en ligne dans une
+vue native : une seule version du site à maintenir, toute modification publiée sur Vercel est visible
+immédiatement dans les applications, sans repasser par les stores. Elles ajoutent :
+
+- les **notifications** : « Pensez à activer vos notifications » sur l'inscription et « Mon profil » ; si elles ont
+  été refusées, le bouton **ouvre directement la page Notifications des réglages du téléphone** ;
+- la **caméra** pour le scanner de l'espace admin ;
+- l'icône et l'écran de démarrage aux couleurs du club, une page « Pas de connexion internet ».
+
+Exigences des stores déjà en place : **suppression du compte** depuis « Mon profil » (obligatoire chez Apple),
+**politique de confidentialité** sur `/confidentialite`, aucune publicité ni traceur. Le paiement par SumUp est
+autorisé dans l'application : billets, buvette et t-shirts sont des biens et services utilisés hors de l'application.
+
+### Construire les applications
+Identifiant : `fr.lsvb.billetterie` · Nom : « LSVB Billetterie ». L'adresse du site est lue dans `APP_URL`
+(par défaut `https://billetterie.lsvb.fr`) : la mettre à jour une fois le domaine choisi.
+
+```bash
+npm install
+APP_URL=https://billetterie.lsvb.fr npm run app:android   # ouvre Android Studio
+APP_URL=https://billetterie.lsvb.fr npm run app:ios       # ouvre Xcode (Mac obligatoire)
+npm run app:icones                                         # régénère icônes et écran de démarrage depuis assets/
+```
+
+À chaque envoi sur GitHub, l'onglet **Actions** vérifie le site et construit une version de test Android (fichier
+APK téléchargeable, installable sur un téléphone Android) et iOS (simulateur).
+
+### Publier
+1. **Comptes** : Apple Developer Program (99 €/an, au nom du club : numéro D-U-N-S de l'association requis)
+   et Google Play Console (25 $ une fois, compte « organisation »).
+2. **Android** : dans Android Studio, *Build › Generate Signed App Bundle* (créer la clé de signature et la conserver
+   précieusement), puis envoyer le fichier `.aab` dans la Play Console.
+3. **iOS** : dans Xcode, choisir l'équipe Apple du club (*Signing & Capabilities*), ajouter la capacité
+   *Push Notifications*, puis *Product › Archive › Distribute App* vers App Store Connect.
+4. **Fiches** : captures d'écran, description, adresse de la politique de confidentialité
+   (`https://…/confidentialite`), questionnaire sur les données (e-mail, nom, adresse, téléphone, achats :
+   utilisés pour le service, non partagés, non utilisés pour le suivi).
+5. **Compte de démonstration pour Apple et Google** : créer un compte client de test et le fournir dans la fiche
+   (les vérificateurs doivent pouvoir se connecter).
+
+### Notifications « commande prête »
+Les applications savent déjà demander l'autorisation et ouvrir les réglages. Pour envoyer réellement les
+notifications : créer un projet Firebase, y ajouter l'application Android (`google-services.json` dans
+`android/app/`) et la clé APNs d'Apple, puis mettre `NEXT_PUBLIC_PUSH_READY=1` dans Vercel : les téléphones
+s'enregistrent alors dans la table `devices`. Le bouton d'envoi « commande prête » côté admin reste à construire.
 
 ## Ventes, TVA et codes promo
 
@@ -70,7 +110,7 @@ publiée sur l'App Store et le Play Store. L'envoi effectif des notifications «
 
 ### 1. Supabase
 1. Créer un projet sur supabase.com (région Europe).
-2. SQL Editor : exécuter dans l'ordre `supabase/migrations/0001_init.sql`, `0002_comptes.sql`, `0003_catalogue_promos_tva.sql`, `0004_pass_profil.sql`,
+2. SQL Editor : exécuter dans l'ordre `supabase/migrations/0001_init.sql`, `0002_comptes.sql`, `0003_catalogue_promos_tva.sql`, `0004_pass_profil.sql`, `0005_relance_suppression_app.sql`,
    puis `supabase/matchs-2026-2027.sql`
    (les 7 matchs à domicile NM1 restants, heure 20:00 par défaut).
 3. Authentication > URL Configuration : *Site URL* = l'adresse du site (ex. `https://billetterie.lsvb.fr`),
@@ -117,8 +157,8 @@ et cocher « En vente ».
 Dans `/admin/reglages`, choisir si le compte client est obligatoire.
 
 ## Le jour du match
-- Contrôle : `/scanner`, mode **Entrée**, choisir le match. Caméra du téléphone, photo du QR, ou douchette USB/Bluetooth.
-- Buvette : `/scanner`, mode **Buvette** : l'écran affiche le produit et la boisson à servir.
+- Contrôle : `/admin/scanner`, mode **Entrée**, choisir le match. Caméra du téléphone, photo du QR, ou douchette USB/Bluetooth.
+- Buvette et boutique : `/admin/scanner`, mode **Buvette** ou **Boutique** : l'écran affiche toute la commande à servir ou à remettre.
 - Vert = valide · Rouge = déjà scanné, mauvais match ou non payé · Orange = QR présenté au mauvais poste.
 - Erreur de scan : bouton « Annuler ce passage ».
 
@@ -132,17 +172,17 @@ npm run dev
 
 ## Tests
 
-```
-bash tests/local/demarrer.sh       # copie locale complète : PostgreSQL 16, Supabase Auth, e-mails (MailDev), site
-python3 tests/e2e/parcours.py      # achat (paiement simulé), e-mail avec QR et ticket de caisse, scan, gestion, mobile
-python3 tests/e2e/catalogue.py     # produits, prix par match, codes promo, fins de vente, TVA, ticket de caisse,
-                                   # boutique, bon de préparation, rapport de TVA (CSV et e-mail)
-# chemin SumUp réel contre un faux serveur SumUp :
-python3 tests/local/faux-sumup.py &
-#   relancer le site avec SUMUP_API_KEY=sk_test_local SUMUP_MERCHANT_CODE=MTEST SUMUP_API_BASE=http://127.0.0.1:4010
-python3 tests/e2e/sumup.py         # création du paiement, vérification, notification, refus de carte, jauge, sécurité
-python3 tests/e2e/comptes.py       # inscription, confirmation, compte, mot de passe oublié, compte obligatoire,
-                                   # tableau de bord, clients, invitation d'un bénévole, droits d'accès
+```bash
+bash tests/tout-tester.sh   # tout, sur une copie locale neuve (Linux) : types, règles de code, 5 parcours
 ```
 
-Chaque scénario se termine par `RESUME: []` quand tout passe.
+La copie locale (`tests/local/demarrer.sh`) réunit PostgreSQL 16, Supabase Auth, un capteur d'e-mails (MailDev)
+et un faux serveur SumUp. Les parcours :
+
+- `parcours.py` : achat (paiement simulé), e-mail avec QR et ticket de caisse, scan, gestion, affichage mobile ;
+- `catalogue.py` : produits, prix par match, codes promo, fins de vente, TVA, boutique, bon de préparation, rapport de TVA ;
+- `sumup.py` : paiement SumUp, vérification, notification, carte refusée, jauge, sécurité ;
+- `comptes.py` : inscription, confirmation, profil, mot de passe oublié, tableau de bord, clients, bénévoles, droits ;
+- `app.py` : relance d'un paiement expiré sans survente, commande annulée, confidentialité, appareils, suppression du compte.
+
+Chaque parcours se termine par `RESUME: []` quand tout passe.

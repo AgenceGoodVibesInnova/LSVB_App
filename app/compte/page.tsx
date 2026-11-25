@@ -6,6 +6,7 @@ import { euros, longDate } from "@/lib/format";
 import ProfileForm from "@/components/ProfileForm";
 import ClientLogout from "@/components/ClientLogout";
 import NotifPrompt from "@/components/NotifPrompt";
+import DeleteAccount from "@/components/DeleteAccount";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Mon profil", robots: { index: false } };
@@ -79,10 +80,14 @@ export default async function Profil() {
             ) : <p className="small muted">Vos factures (tickets de caisse) apparaîtront ici après chaque achat.</p>}
           </div>
         </div>
+        <div>
         <ProfileForm email={email} initial={{
           first_name: profile?.first_name ?? "", last_name: profile?.last_name ?? "", address: profile?.address ?? "",
           postal_code: profile?.postal_code ?? "", city: profile?.city ?? "", phone: profile?.phone ?? "", marketing_opt_in: !!profile?.marketing_opt_in,
         }} />
+        <p className="small muted" style={{ margin: "4px 4px 10px" }}><a href="/confidentialite">Politique de confidentialité</a></p>
+        {staff ? null : <DeleteAccount />}
+        </div>
       </div>
     </main>
   );

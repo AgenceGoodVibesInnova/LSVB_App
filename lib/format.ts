@@ -46,3 +46,6 @@ export function code(n: number) {
 
 export const CODE_RE = /([A-Z0-9]{8})-(\d{1,3})-([A-Z0-9]{4})/;
 export const passCode = (orderId: string, idx: number, token: string) => `${orderId}-${idx}-${token}`;
+
+/** Texte comparable pour les recherches : minuscules, sans accents (« Léa » est trouvée avec « lea »). */
+export const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();

@@ -294,3 +294,16 @@ input[type=date]{width:100%;padding:11px 13px;border:2px solid var(--grey);borde
 .pass .qrsvg svg{width:170px;height:170px;display:block;margin:10px auto 6px}
 .pass.used-pass{border-color:#C9CED6;box-shadow:none;filter:grayscale(1);opacity:.55}
 .pass.used-pass .pass-h{background:#9AA3AF}
+.btn.danger{background:#C62828;color:#fff;box-shadow:0 3px 0 #8E1C1C}
+.btn.danger:disabled{opacity:.45;cursor:not-allowed}
+.danger-link{color:#C62828!important;margin-top:4px}
+.danger-box{border:2px solid #F3C4C4}
+.legal h2{color:var(--blue-d);margin:22px 0 8px;font-size:19px}
+.legal p,.legal li{font-size:14px;line-height:1.6}
+.legal ul{padding-left:20px}
+.home-note{background:#fff;color:var(--blue-d);border-radius:12px;padding:10px 14px;font-weight:700;font-size:14px;margin-bottom:16px;text-align:center}
+.home-legal{display:block;margin-top:22px;color:rgba(255,255,255,.75);font-size:12px;text-decoration:underline}
+/* Application iOS / Android et écran d'accueil : zones de l'encoche et de la barre du bas */
+header{padding-top:env(safe-area-inset-top)}
+.home{padding-top:calc(30px + env(safe-area-inset-top));padding-bottom:calc(30px + env(safe-area-inset-bottom))}
+footer{padding-bottom:calc(30px + env(safe-area-inset-bottom))}

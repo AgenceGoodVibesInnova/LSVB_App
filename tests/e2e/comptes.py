@@ -103,9 +103,9 @@ with sync_playwright() as p:
     a.screenshot(path=f"{SHOTS}/9-tableau-de-bord.png", full_page=True)
     a.goto(BASE + "/admin/clients"); t = U(a.inner_text("main"))
     check("LÉA BERNARD" in t and "COMPTE" in t, "fichier clients")
-    a.goto(BASE + "/admin/clients?q=bernard"); check("Léa Bernard" in a.inner_text("tbody"), "recherche client")
+    a.goto(BASE + "/admin/clients?q=bernard"); check("LÉA BERNARD" in U(a.inner_text("tbody")), "recherche client")
     a.screenshot(path=f"{SHOTS}/10-clients.png", full_page=True)
-    a.goto(BASE + "/admin/commandes?match=J16CHA&q=lea"); check("Léa Bernard" in a.inner_text("tbody"), "recherche de commande")
+    a.goto(BASE + "/admin/commandes?match=J16CHA&q=lea"); check("LÉA BERNARD" in U(a.inner_text("tbody")), "recherche de commande")
     # Réglage : compte obligatoire
     a.goto(BASE + "/admin/reglages"); a.check("input[type=checkbox]"); a.click("button:has-text('Enregistrer')"); a.wait_for_selector("text=Réglages enregistrés")
     anon = b.new_page(); anon.goto(BASE + "/acheter"); anon.wait_for_load_state("networkidle")

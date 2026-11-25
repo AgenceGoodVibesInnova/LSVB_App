@@ -10,3 +10,4 @@ next-env.d.ts
 
 # Copie locale de test
 tests/.local/
+mobile/www/hors-ligne.html

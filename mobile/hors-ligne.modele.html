@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Pas de connexion</title>
+<style>
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#1F5190;color:#fff;font-family:Montserrat,-apple-system,Roboto,sans-serif;text-align:center;padding:24px;box-sizing:border-box}
+  .b{max-width:340px}
+  h1{font-size:22px;margin:16px 0 8px}
+  p{opacity:.85;line-height:1.5;font-size:15px}
+  button{margin-top:18px;background:#F08A12;color:#fff;border:0;border-radius:14px;padding:14px 26px;font-weight:800;font-size:16px;box-shadow:0 3px 0 #C46D06}
+</style>
+</head>
+<body>
+  <div class="b">
+    <div style="font-size:54px">📶</div>
+    <h1>Pas de connexion internet</h1>
+    <p>La billetterie a besoin d'internet. Vos billets restent aussi dans l'e-mail de confirmation.</p>
+    <button onclick="location.href=(window.APP_URL||'/')">Réessayer</button>
+  </div>
+  <script>window.APP_URL = "__APP_URL__";</script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 import { requireStaff } from "@/lib/auth";
 import { supabaseService } from "@/lib/supabase/server";
 import { clientList } from "@/lib/clients";
-import { euros, shortDate } from "@/lib/format";
+import { euros, fold, shortDate } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -9,8 +9,8 @@ export default async function Clients({ searchParams }: { searchParams: Promise<
   await requireStaff("admin", "/admin/clients");
   const sp = await searchParams;
   const all = await clientList(supabaseService());
-  const q = (sp.q ?? "").trim().toLowerCase();
-  const list = q ? all.filter((c) => [c.name, c.email, c.phone].some((v) => v.toLowerCase().includes(q))) : all;
+  const q = fold((sp.q ?? "").trim());
+  const list = q ? all.filter((c) => [c.name, c.email, c.phone].some((v) => fold(v ?? "").includes(q))) : all;
   return (
     <>
       <div className="page-head"><div><div className="kick">Fichier</div><h2>Clients</h2></div>

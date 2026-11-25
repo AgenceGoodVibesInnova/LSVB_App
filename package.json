@@ -6,24 +6,47 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "check": "tsc --noEmit && eslint .",
+    "app:sync": "node mobile/preparer.mjs && cap sync",
+    "app:android": "npm run app:sync && cap open android",
+    "app:ios": "npm run app:sync && cap open ios",
+    "app:icones": "capacitor-assets generate --iconBackgroundColor #1F5190 --iconBackgroundColorDark #1F5190 --splashBackgroundColor #1F5190 --splashBackgroundColorDark #1F5190 --android --ios"
   },
   "dependencies": {
+    "@capacitor/android": "8.6.2",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/core": "8.6.2",
+    "@capacitor/ios": "8.6.2",
+    "@capacitor/push-notifications": "8.1.3",
+    "@capacitor/splash-screen": "8.0.2",
+    "@capacitor/status-bar": "8.0.4",
     "@supabase/ssr": "0.12.7",
     "@supabase/supabase-js": "2.119.0",
+    "capacitor-native-settings": "8.2.0",
     "jsqr": "1.4.0",
-    "next": "15.5.28",
-    "nodemailer": "6.10.1",
+    "next": "15.5.29",
+    "nodemailer": "10.6.1",
     "qrcode": "1.5.4",
     "react": "19.1.0",
     "react-dom": "19.1.0"
   },
   "devDependencies": {
+    "@capacitor/assets": "4.0.0",
+    "@capacitor/cli": "8.6.2",
+    "@eslint/eslintrc": "3.3.1",
     "@types/node": "22.15.3",
-    "@types/nodemailer": "6.4.17",
+    "@types/nodemailer": "8.0.2",
     "@types/qrcode": "1.5.5",
     "@types/react": "19.1.2",
     "@types/react-dom": "19.1.2",
+    "eslint": "9.39.1",
+    "eslint-config-next": "15.5.29",
+    "postcss": "8.5.33",
     "typescript": "5.8.3"
+  },
+  "overrides": {
+    "postcss": "$postcss"
   }
 }

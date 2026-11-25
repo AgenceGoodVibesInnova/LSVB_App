@@ -3,7 +3,8 @@ import Link from "next/link";
 export const metadata = { title: "Billetterie LSVB" };
 
 /** Première page de l'application : deux portes d'entrée. */
-export default function Accueil() {
+export default async function Accueil({ searchParams }: { searchParams: Promise<{ compte?: string }> }) {
+  const { compte } = await searchParams;
   return (
     <main className="home">
       <div className="home-in">
@@ -11,11 +12,13 @@ export default function Accueil() {
         <img className="home-logo" src="/logo.png" alt="Les Sables Vendée Basket" />
         <h1>Billetterie</h1>
         <div className="home-sub">Les Sables <span>★</span> Vendée Basket</div>
+        {compte === "supprime" ? <div className="home-note" role="status">Votre compte a bien été supprimé.</div> : null}
         <Link className="home-main" href="/compte">
           <span className="hi" aria-hidden="true">🎟️</span>
           <span><b>Mon compte client</b><small>Billets, buvette, boutique, mes pass et factures</small></span>
         </Link>
         <Link className="home-admin" href="/admin">Espace admin</Link>
+        <a className="home-legal" href="/confidentialite">Confidentialité</a>
       </div>
     </main>
   );

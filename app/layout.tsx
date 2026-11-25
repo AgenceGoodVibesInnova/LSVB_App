@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   icons: { icon: "/logo.png", apple: "/icon-192.png" },
   appleWebApp: { capable: true, title: "LSVB Billetterie", statusBarStyle: "black-translucent" },
 };
-export const viewport: Viewport = { themeColor: "#1F5190" };
+export const viewport: Viewport = { themeColor: "#1F5190", viewportFit: "cover" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

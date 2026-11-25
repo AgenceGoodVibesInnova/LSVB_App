@@ -21,3 +21,27 @@ export async function PATCH(req: Request) {
   if (error) return NextResponse.json({ error: "Enregistrement impossible." }, { status: 500 });
   return NextResponse.json({ ok: true });
 }
+
+/**
+ * Suppression du compte client (exigée par l'App Store et Google Play).
+ * Le profil et les appareils sont effacés. Les commandes payées sont conservées pour la comptabilité
+ * (tickets de caisse, 10 ans) mais ne sont plus rattachées à aucun compte.
+ */
+export async function DELETE(req: Request) {
+  const { data: { user } } = await (await supabaseServer()).auth.getUser();
+  if (!user) return NextResponse.json({ error: "Non connecté." }, { status: 401 });
+  const b = (await req.json().catch(() => ({}))) as { confirm?: string };
+  if (b.confirm !== "SUPPRIMER") return NextResponse.json({ error: "Confirmation manquante." }, { status: 400 });
+  const admin = supabaseService();
+  const { data: staff } = await admin.from("staff").select("role").eq("user_id", user.id).maybeSingle();
+  if (staff) return NextResponse.json({ error: "Ce compte fait partie de l'équipe du club : demandez à un administrateur de vous retirer de l'équipe d'abord." }, { status: 409 });
+  await admin.from("orders").update({ user_id: null }).eq("user_id", user.id);
+  await admin.from("devices").delete().eq("user_id", user.id);
+  const { error } = await admin.auth.admin.deleteUser(user.id); // le profil part avec (on delete cascade)
+  if (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Suppression impossible pour le moment. Réessayez plus tard." }, { status: 500 });
+  }
+  await (await supabaseServer()).auth.signOut().catch(() => {});
+  return NextResponse.json({ ok: true });
+}

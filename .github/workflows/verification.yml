@@ -1,0 +1,61 @@
+name: Vérification
+
+# À chaque envoi sur GitHub : contrôle du code du site, puis construction des applications Android et iOS
+# (version de test non signée), pour être sûr que tout compile avant de publier.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  site:
+    name: Site (types, règles, compilation)
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://exemple.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: cle-de-test
+      NEXT_PUBLIC_SITE_URL: https://billetterie.lsvb.fr
+      SUPABASE_SERVICE_ROLE_KEY: cle-de-test
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm audit --omit=dev --audit-level=high
+      - run: npm run build
+
+  android:
+    name: Application Android
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21, cache: gradle }
+      - run: npm ci
+      - run: npm run app:sync
+      - run: ./gradlew assembleDebug --no-daemon
+        working-directory: android
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lsvb-billetterie-android-test
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+
+  ios:
+    name: Application iOS
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run app:sync
+      - run: >
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug
+          -sdk iphonesimulator -destination "generic/platform=iOS Simulator"
+          CODE_SIGNING_ALLOWED=NO build

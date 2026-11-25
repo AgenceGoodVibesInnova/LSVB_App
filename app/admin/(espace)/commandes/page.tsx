@@ -1,7 +1,7 @@
 import { requireStaff } from "@/lib/auth";
 import Link from "next/link";
 import { supabaseService } from "@/lib/supabase/server";
-import { euros, shortDate } from "@/lib/format";
+import { euros, fold, shortDate } from "@/lib/format";
 import { HOLD_MINUTES, type Line, type Prices } from "@/lib/catalog";
 import type { AdminEvent } from "@/components/EventEditor";
 import OrderActions from "@/components/OrderActions";
@@ -28,8 +28,8 @@ export default async function Commandes({ searchParams }: { searchParams: Promis
         .eq("event_id", sel.id).in("status", ["paid", "pending"]).order("created_at", { ascending: false })
     : { data: [] };
   const all = (od ?? []) as O[];
-  const q = (sp.q ?? "").trim().toLowerCase();
-  const orders = q ? all.filter((o) => [o.id, o.buyer_name, o.email, o.grp ?? "", o.phone ?? ""].some((v) => v.toLowerCase().includes(q))) : all;
+  const q = fold((sp.q ?? "").trim());
+  const orders = q ? all.filter((o) => [o.id, o.buyer_name, o.email, o.grp ?? "", o.phone ?? ""].some((v) => fold(v ?? "").includes(q))) : all;
   const paid = all.filter((o) => o.status === "paid");
   const count = (k: string) => paid.reduce((n, o) => n + o.passes.filter((p) => p.kind === k).length, 0);
   const entered = paid.reduce((n, o) => n + o.passes.filter((p) => p.kind === "ticket" && p.used_at).length, 0);
