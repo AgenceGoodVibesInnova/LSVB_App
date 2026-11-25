@@ -1,3 +1,4 @@
+import { requireStaff } from "@/lib/auth";
 import { supabaseService } from "@/lib/supabase/server";
 import { loadProducts } from "@/lib/catalog";
 import ProductManager from "@/components/ProductManager";
@@ -5,6 +6,7 @@ import ProductManager from "@/components/ProductManager";
 export const dynamic = "force-dynamic";
 
 export default async function Produits() {
+  await requireStaff("admin", "/admin/produits");
   const products = await loadProducts(supabaseService(), true);
   return (
     <>

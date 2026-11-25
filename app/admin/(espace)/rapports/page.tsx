@@ -1,3 +1,4 @@
+import { requireStaff } from "@/lib/auth";
 import Link from "next/link";
 import { supabaseService } from "@/lib/supabase/server";
 import { buildReport } from "@/lib/report";
@@ -10,6 +11,7 @@ export const dynamic = "force-dynamic";
 const pct = (r: number) => `${r.toLocaleString("fr-FR")} %`;
 
 export default async function Rapports({ searchParams }: { searchParams: Promise<{ match?: string }> }) {
+  await requireStaff("admin", "/admin/rapports");
   const admin = supabaseService();
   const { data: evs } = await admin.from("events").select("id, name, starts_at").order("starts_at");
   const events = evs ?? [];

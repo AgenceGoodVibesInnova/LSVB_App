@@ -1,11 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 /** Choix d'un nouveau mot de passe (mot de passe oublié, invitation de l'équipe). */
 export default function SetPassword({ next, back }: { next: string; back: string }) {
-  const router = useRouter();
   const [ready, setReady] = useState(false);
   const [pw, setPw] = useState("");
   const [pw2, setPw2] = useState("");
@@ -25,7 +23,7 @@ export default function SetPassword({ next, back }: { next: string; back: string
     if (pw !== pw2) return setErr("Les deux mots de passe ne sont pas identiques.");
     const { error } = await supabaseBrowser().auth.updateUser({ password: pw });
     if (error) return setErr("Le lien a expiré. Demandez-en un nouveau.");
-    router.push(next); router.refresh();
+    window.location.assign(next);
   }
 
   return (

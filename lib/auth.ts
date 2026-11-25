@@ -21,10 +21,10 @@ export async function staffMember() {
 }
 
 /** Page réservée à l'équipe : redirige vers la connexion si besoin. */
-export async function requireStaff(min: Role = "scan", from = "/scanner") {
+export async function requireStaff(min: Role = "scan", from = "/admin/scanner") {
   const s = await staffMember();
   if (!s) redirect(`/admin/connexion?suite=${encodeURIComponent(from)}`);
-  if (RANK[s.role] < RANK[min]) redirect("/scanner");
+  if (RANK[s.role] < RANK[min]) redirect("/admin/scanner");
   return s;
 }
 

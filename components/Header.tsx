@@ -2,36 +2,33 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-type L = { href: string; label: string; dot?: boolean };
-
-export default function Header({ logged, role }: { logged: boolean; role: "admin" | "scan" | null }) {
+/** En-tête : côté public Acheter / Mes pass / Mon profil ; côté administration, retour au site. Rien sur la page d'accueil. */
+export default function Header() {
   const path = usePathname();
-  const links: L[] = [
-    { href: "/", label: "Acheter", dot: true },
-    logged ? { href: "/compte", label: "Mon compte" } : { href: "/mes-billets", label: "Mes billets" },
-    ...(logged ? [] : [{ href: "/connexion", label: "Connexion" }]),
-    ...(role ? [{ href: "/scanner", label: "Scanner" }] : []),
-    ...(role === "admin" ? [{ href: "/admin", label: "Gestion" }] : []),
-  ];
-  const on = (h: string) => (h === "/" ? path === "/" || path.startsWith("/paiement")
-    : h === "/admin" ? path.startsWith("/admin") && !path.startsWith("/admin/connexion")
-    : path.startsWith(h) || ((h === "/mes-billets" || h === "/compte") && path.startsWith("/billets")));
+  if (path === "/") return null;
+  const admin = path.startsWith("/admin") || path.startsWith("/scanner");
+  const links: { href: string; label: string; dot?: boolean }[] = admin
+    ? [{ href: "/acheter", label: "← Retour au site" }]
+    : [{ href: "/acheter", label: "Acheter", dot: true }, { href: "/pass", label: "Mes pass" }, { href: "/compte", label: "Mon profil" }];
+  const on = (h: string) =>
+    !admin && (h === "/acheter" ? path.startsWith("/acheter") || path.startsWith("/paiement")
+      : h === "/compte" ? ["/compte", "/connexion", "/mot-de-passe", "/recu", "/billets", "/mes-billets"].some((x) => path.startsWith(x))
+      : path.startsWith(h));
   return (
     <header>
       <div className="hwrap">
-        <Link href="/" className="brand" style={{ color: "#fff", textDecoration: "none" }}>
+        <Link href={admin ? "/admin" : "/"} className="brand" style={{ color: "#fff", textDecoration: "none" }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo.png" alt="Les Sables Vendée Basket" />
           <div>
-            <h1>Billetterie</h1>
+            <h1>{admin ? "Administration" : "Billetterie"}</h1>
             <div className="sub">Les Sables <span className="st">★</span> Vendée Basket</div>
           </div>
         </Link>
         <nav>
+          {admin ? <span className="adm-badge">Espace administrateur</span> : null}
           {links.map((l) => (
-            <Link key={l.href} href={l.href} className={on(l.href) ? "on" : ""}>
-              {l.dot ? <span className="dot" /> : null}{l.label}
-            </Link>
+            <Link key={l.href} href={l.href} className={on(l.href) ? "on" : ""}>{l.dot ? <span className="dot" /> : null}{l.label}</Link>
           ))}
         </nav>
       </div>

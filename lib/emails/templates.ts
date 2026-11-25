@@ -28,7 +28,7 @@ export function welcomeEmail(firstName: string | null) {
       kicker: "Compte activé",
       title: "On se voit à l'Arena !",
       paragraphs: ["Votre compte est prêt. Réservez vos places et votre buvette en quelques clics, et retrouvez vos QR codes à tout moment dans votre espace."],
-      primary: { label: "Réserver mes places", url: site },
+      primary: { label: "Réserver mes places", url: `${site}/acheter` },
       secondary: { label: "Mon compte", url: `${site}/compte` },
     }),
   };
@@ -82,6 +82,7 @@ function qrGrid(r: ReceiptData, eventName: string) {
         <tr><td align="center" style="padding:10px 8px 4px"><img src="cid:qr${p.idx}@lsvb" width="170" height="170" alt="QR code ${esc(passCode(r.id, p.idx, p.token))}" style="display:block;width:170px;height:170px"></td></tr>
         <tr><td align="center" style="padding:0 8px 10px;font-family:Arial,sans-serif">
           <div style="font-size:14px;font-weight:bold;color:#163B6B">${esc(p.label)}</div>
+          ${p.items?.length ? `<div style="font-size:12px;color:#14243B;text-align:left;background:#FFF1E0;border-radius:8px;padding:6px 10px;margin:6px 0">${p.items.map((i) => `<b>${i.q}×</b> ${esc(i.label)}`).join("<br>")}</div>` : ""}
           <div style="font-size:11px;color:#5E6B80;font-family:monospace">${esc(passCode(r.id, p.idx, p.token))}</div>
           <div style="font-size:11px;color:#5E6B80">${esc(eventName)}</div>
         </td></tr>
@@ -121,7 +122,7 @@ export function ticketsEmail(r: ReceiptData, url: string, receiptUrl: string) {
       title: "Vos billets sont prêts",
       paragraphs: [
         `Bonjour ${esc(r.buyer_name)}, merci pour votre commande${ev ? ` pour <strong>${esc(ev.name)}</strong>, ${esc(when)}${ev.venue ? ` — ${esc(ev.venue)}` : ""}` : ""}.`,
-        r.is_demo ? "Commande d'essai : le paiement a été simulé, rien n'a été débité." : "Vos QR codes sont ci-dessous : <strong>rien à télécharger</strong>, montrez simplement cet e-mail sur votre téléphone. Un QR par personne à l'entrée, et vos bons à la buvette ou à la boutique.",
+        r.is_demo ? "Commande d'essai : le paiement a été simulé, rien n'a été débité." : "Vos QR codes sont ci-dessous : <strong>rien à télécharger</strong>, montrez simplement cet e-mail sur votre téléphone. Un QR par personne à l'entrée ; un seul QR pour toute votre commande buvette, et un pour la boutique.",
       ],
       body: `${qrGrid(r, ev?.name ?? "")}<div style="height:18px"></div>${receiptBlock(r)}`,
       primary: { label: "Ouvrir mes billets en ligne", url },

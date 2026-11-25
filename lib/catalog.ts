@@ -81,5 +81,8 @@ export type Line = {
   vat_rate: number;
   discount_cents?: number; // part de la remise affectée à la ligne
 };
-export type Pass = { idx: number; kind: Kind; type: string; label: string; drink: string | null; token: string };
+export type PassItem = { label: string; q: number };
+/** Billet : un QR par personne. Buvette et boutique : un seul QR par commande, qui liste les articles (items). */
+export type Pass = { idx: number; kind: Kind; type: string; label: string; drink: string | null; token: string; items?: PassItem[] | null };
+export const BON_LABEL: Record<Kind, string> = { ticket: "Billet", food: "Bon buvette", shop: "Bon boutique" };
 export type VatRow = { rate: number; ht_cents: number; vat_cents: number; ttc_cents: number };

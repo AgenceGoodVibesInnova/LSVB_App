@@ -54,7 +54,7 @@ with sync_playwright() as p:
     a.screenshot(path=f"{SHOTS}/14-promos.png", full_page=True)
 
     # 4. Achat : 2 billets + t-shirt M avec TALMONT2026 (−10 % sur les billets)
-    a.goto(BASE); a.wait_for_load_state("networkidle")
+    a.goto(BASE + "/acheter"); a.wait_for_load_state("networkidle")
     check(a.locator(".prod .nm b", has_text=re.compile(r"^Coca-Cola$")).count() == 1, "la nouvelle boisson est en vente")
     plus = lambda name: a.locator(".prod", has_text=name).first.locator("button[aria-label^='Ajouter']").click()
     plus("Plein tarif"); plus("Plein tarif")
@@ -68,7 +68,7 @@ with sync_playwright() as p:
     r = N(a.inner_text(".recap"))
     check("−2,00 €" in r and "46,00 €" in r, f"TALMONT2026 : −2,00 € sur les billets, total 46,00 € ({r.splitlines()[-4:]})")
     a.screenshot(path=f"{SHOTS}/15-promo-panier.png", full_page=True)
-    a.fill("input[autocomplete=name]", "Club de Talmont"); a.fill("input[autocomplete=email]", "talmont@test.local")
+    a.fill("input[autocomplete=family-name]", "Talmont"); a.fill("input[autocomplete=given-name]", "Club"); a.fill("input[autocomplete=postal-code]", "85440"); a.fill("input[autocomplete=email]", "talmont@test.local")
     a.click("button:has-text('Payer ma commande')"); a.wait_for_url(re.compile("/paiement/"))
     check("TALMONT2026" in a.inner_text("main"), "remise rappelée sur la page de paiement")
     a.click("button:has-text('Simuler le paiement')"); a.wait_for_url(re.compile("/billets/")); tok = a.url.rsplit("/", 1)[1]
@@ -84,7 +84,7 @@ with sync_playwright() as p:
 
     # 5. Code à 1 utilisation, code d'un autre match, invitation à 100 %
     def api_order(eventId, items, promo):
-        return a.request.post(BASE + "/api/orders", data={"eventId": eventId, "name": "X", "email": "x@test.local", "items": items, "promo": promo})
+        return a.request.post(BASE + "/api/orders", data={"eventId": eventId, "lastName": "X", "firstName": "Y", "postal": "85000", "email": "x@test.local", "items": items, "promo": promo})
     r1 = api_order("J16CHA", {"full": 1}, "TALMONT2026"); check(r1.status == 400 and "pas valable pour ce match" in r1.json()["error"], "code réservé à un autre match refusé")
     r1 = api_order("J16CHA", {"full": 1}, "UNEFOIS"); r2 = api_order("J16CHA", {"full": 1}, "UNEFOIS")
     check(r1.ok and r2.status == 400 and "maximum" in r2.json()["error"], "code à 1 utilisation : 2e utilisation refusée")
@@ -94,26 +94,26 @@ with sync_playwright() as p:
 
     # 6. Fins de vente
     sql("update events set shop_end_at = now() - interval '1 hour' where id='J16CHA'")
-    a.goto(BASE); a.click(".ev:has-text('Challans')")
+    a.goto(BASE + "/acheter"); a.click(".ev:has-text('Challans')")
     check("COMMANDES BUVETTE SONT CLOSES" in U(a.inner_text("main")) and a.locator(".prod", has_text="Tacos").count() == 0, "buvette close : section fermée")
     r = api_order("J16CHA", {"t": 1}, ""); check(r.status == 409 and "closes" in r.json()["error"], "buvette close : commande refusée")
     r = api_order("J16CHA", {"full": 1}, ""); check(r.ok, "billets toujours en vente")
     sql("update events set sales_end_at = now() - interval '1 hour' where id='J16CHA'")
-    a.goto(BASE); check(a.locator(".ev", has_text="Challans").count() == 0, "vente terminée : match retiré de la vente")
+    a.goto(BASE + "/acheter"); check(a.locator(".ev", has_text="Challans").count() == 0, "vente terminée : match retiré de la vente")
     r = api_order("J16CHA", {"full": 1}, ""); check(r.status == 409, "vente terminée : commande refusée")
     sql("update events set sales_end_at=null, shop_end_at=null where id='J16CHA'")
-    a.goto(BASE); a.click(".ev:has-text('Rennes')")
+    a.goto(BASE + "/acheter"); a.click(".ev:has-text('Rennes')")
     check("12,00" in N(a.inner_text(".prod:has-text('Plein tarif')")) and a.locator(".prod", has_text="bonbons").count() == 0, "match Rennes : prix spécial affiché, bonbons absents")
 
     # 7. Scanner : boutique
     codes = sql(f"select order_id||'-'||idx||'-'||token||'|'||kind from passes where order_id='{oid}' order by idx").splitlines()
     shop = [c.split("|")[0] for c in codes if c.endswith("|shop")][0]
-    a.goto(BASE + "/scanner"); a.select_option("select", "J15FOU"); a.click(".mode button:has-text('Boutique')")
+    a.goto(BASE + "/admin/scanner"); a.select_option("select", "J15FOU"); a.click(".mode button:has-text('Boutique')")
     inp = a.locator("input[placeholder^='K7P2']")
     with a.expect_response(lambda r: r.url.endswith("/api/scan")):
         inp.fill(shop); inp.press("Enter")
     a.wait_for_timeout(300); r = U(a.inner_text(".result"))
-    check("À REMETTRE" in r and "TAILLE M" in r, f"boutique : t-shirt taille M à remettre ({r!r})")
+    check("COMMANDE À REMETTRE" in r and "TAILLE M" in r, f"boutique : t-shirt taille M à remettre ({r!r})")
 
     # 8. Bon de préparation, rapport de TVA
     a.goto(BASE + "/admin/commandes?match=J15FOU"); t = a.inner_text(".prep")

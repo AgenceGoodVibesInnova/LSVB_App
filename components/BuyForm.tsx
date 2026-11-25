@@ -13,7 +13,7 @@ export type SaleProduct = {
   id: string; category: Category; name: string; description: string | null; icon: string | null;
   choice: "boisson" | "option" | null; choiceLabel: string | null; choices: string[];
 };
-type Me = { name: string; email: string; phone: string } | null;
+type Me = { first: string; last: string; postal: string; email: string; phone: string } | null;
 type PromoState = { code: string; text: string; discount: number } | null;
 
 const SECTIONS: { title: string; cats: Category[]; note?: string }[] = [
@@ -30,7 +30,7 @@ export default function BuyForm({ events, catalog, demo, canBuy, me, isStaff, ac
   const [cart, setCart] = useState<Record<string, number>>({});
   const [stack, setStack] = useState<Record<string, string[]>>({});
   const [asking, setAsking] = useState<SaleProduct | null>(null);
-  const [form, setForm] = useState({ name: me?.name ?? "", email: me?.email ?? "", phone: me?.phone ?? "", group: "" });
+  const [form, setForm] = useState({ last: me?.last ?? "", first: me?.first ?? "", postal: me?.postal ?? "", email: me?.email ?? "", phone: me?.phone ?? "", group: "" });
   const [promoInput, setPromoInput] = useState("");
   const [promo, setPromo] = useState<PromoState>(null);
   const [promoErr, setPromoErr] = useState("");
@@ -115,10 +115,11 @@ export default function BuyForm({ events, catalog, demo, canBuy, me, isStaff, ac
 
   async function submit() {
     setErr("");
-    if (!form.name.trim()) return setErr("Indiquez votre nom.");
+    if (!form.last.trim() || !form.first.trim()) return setErr("Indiquez votre nom et votre prénom.");
+    if (!/^[0-9A-Za-z -]{4,10}$/.test(form.postal.trim())) return setErr("Indiquez votre code postal.");
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) return setErr("Adresse e-mail invalide.");
     setBusy(true);
-    const res = await fetch("/api/orders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ eventId: evId, ...form, promo: promo?.code ?? "", items: cart }) });
+    const res = await fetch("/api/orders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ eventId: evId, lastName: form.last, firstName: form.first, postal: form.postal, email: form.email, phone: form.phone, group: form.group, promo: promo?.code ?? "", items: cart }) });
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.token) { setBusy(false); return setErr(data.error ?? "Commande impossible, réessayez."); }
     try {
@@ -204,15 +205,19 @@ export default function BuyForm({ events, catalog, demo, canBuy, me, isStaff, ac
             <div className="card">
               <div className="sec-title"><span className="n">{n++}</span>Vos coordonnées</div>
               {isStaff ? <p className="notice" style={{ marginTop: -4 }}>Vente par l&apos;équipe : saisissez les coordonnées de l&apos;acheteur, les billets lui seront envoyés.</p>
-                : me ? <p className="small muted" style={{ marginTop: -6 }}>Commande rattachée à votre compte : vos billets et votre ticket de caisse seront aussi dans « Mon compte ».</p>
-                : mustLogin ? <p className="notice" style={{ marginTop: -4 }}>Un compte est nécessaire pour acheter. <a href="/connexion?suite=/">Se connecter ou créer un compte</a> (votre panier est conservé).</p>
-                : <p className="small muted" style={{ marginTop: -6 }}>Vous avez un compte ? <a href="/connexion?suite=/">Connectez-vous</a> pour retrouver vos billets dans votre espace. Sinon, continuez simplement.</p>}
+                : me ? <p className="small muted" style={{ marginTop: -6 }}>Commande rattachée à votre compte : vos pass et votre ticket de caisse seront aussi dans « Mes pass » et « Mon profil ».</p>
+                : mustLogin ? <p className="notice" style={{ marginTop: -4 }}>Un compte est nécessaire pour acheter. <a href="/connexion?suite=/acheter">Se connecter ou créer un compte</a> (votre panier est conservé).</p>
+                : <p className="small muted" style={{ marginTop: -6 }}>Vous avez un compte ? <a href="/connexion?suite=/acheter">Connectez-vous</a> pour retrouver vos billets dans votre espace. Sinon, continuez simplement.</p>}
               <div className="row">
-                <label className="f"><span>Nom et prénom *</span><input type="text" autoComplete="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
-                <label className="f"><span>E-mail * (pour recevoir les billets)</span><input type="email" autoComplete="email" value={form.email} disabled={!!me} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
+                <label className="f"><span>Nom *</span><input type="text" autoComplete="family-name" value={form.last} onChange={(e) => setForm({ ...form, last: e.target.value })} /></label>
+                <label className="f"><span>Prénom *</span><input type="text" autoComplete="given-name" value={form.first} onChange={(e) => setForm({ ...form, first: e.target.value })} /></label>
               </div>
               <div className="row">
+                <label className="f"><span>Code postal *</span><input type="text" inputMode="numeric" maxLength={10} autoComplete="postal-code" value={form.postal} onChange={(e) => setForm({ ...form, postal: e.target.value })} /></label>
                 <label className="f"><span>Téléphone</span><input type="tel" autoComplete="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></label>
+              </div>
+              <div className="row">
+                <label className="f"><span>E-mail * (pour recevoir les billets)</span><input type="email" autoComplete="email" value={form.email} disabled={!!me} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
                 <label className="f"><span>Groupe / structure</span><input type="text" placeholder="Ex. club, entreprise, école…" value={form.group} onChange={(e) => setForm({ ...form, group: e.target.value })} /></label>
               </div>
             </div>
@@ -233,7 +238,7 @@ export default function BuyForm({ events, catalog, demo, canBuy, me, isStaff, ac
           {promoErr ? <div className="err" role="alert">{promoErr}</div> : null}
           <div className="tot"><span style={{ fontWeight: 800, textTransform: "uppercase", fontSize: 13 }}>Total TTC</span><b>{euros(total)}</b></div>
           {mustLogin
-            ? <a className="btn pri full" style={{ marginTop: 14 }} href="/connexion?suite=/">Se connecter pour acheter</a>
+            ? <a className="btn pri full" style={{ marginTop: 14 }} href="/connexion?suite=/acheter">Se connecter pour acheter</a>
             : <button className="btn pri full" style={{ marginTop: 14 }} disabled={!canBuy || !lines.length || busy} onClick={submit}>{busy ? "Préparation du paiement…" : total === 0 && lines.length ? "Valider ma commande" : "Payer ma commande"}</button>}
           {err ? <div className="err" role="alert">{err}</div> : null}
           <p className="small muted" style={{ margin: "12px 0 0" }}>Paiement sécurisé par carte bancaire avec SumUp. Vous recevez par e-mail un QR code par billet et par article, et votre ticket de caisse.</p>

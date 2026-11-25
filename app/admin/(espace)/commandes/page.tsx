@@ -1,3 +1,4 @@
+import { requireStaff } from "@/lib/auth";
 import Link from "next/link";
 import { supabaseService } from "@/lib/supabase/server";
 import { euros, shortDate } from "@/lib/format";
@@ -10,6 +11,7 @@ export const dynamic = "force-dynamic";
 type O = { id: string; receipt_no: string | null; promo_code: string | null; discount_cents: number; created_at: string; buyer_name: string; email: string; phone: string | null; grp: string | null; lines: Line[]; total_cents: number; status: string; pay_method: string; access_token: string; passes: { kind: string; used_at: string | null }[] };
 
 export default async function Commandes({ searchParams }: { searchParams: Promise<{ match?: string; q?: string }> }) {
+  await requireStaff("admin", "/admin/commandes");
   const admin = supabaseService();
   const [{ data: evs }, { data: sales }] = await Promise.all([
     admin.from("events").select("*").order("starts_at"),

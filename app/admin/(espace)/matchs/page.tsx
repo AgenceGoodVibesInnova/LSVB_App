@@ -1,3 +1,4 @@
+import { requireStaff } from "@/lib/auth";
 import { supabaseService } from "@/lib/supabase/server";
 import { loadProducts, HOLD_MINUTES, type Prices } from "@/lib/catalog";
 import EventEditor, { type AdminEvent } from "@/components/EventEditor";
@@ -5,6 +6,7 @@ import EventEditor, { type AdminEvent } from "@/components/EventEditor";
 export const dynamic = "force-dynamic";
 
 export default async function Matchs() {
+  await requireStaff("admin", "/admin/matchs");
   const admin = supabaseService();
   const [{ data: evs }, { data: sales }, products] = await Promise.all([
     admin.from("events").select("*").order("starts_at"),

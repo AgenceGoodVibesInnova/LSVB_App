@@ -16,7 +16,7 @@ export async function POST(req: Request) {
   const email = String(b.email ?? "").trim().toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return NextResponse.json({ error: "Indiquez une adresse e-mail valide." }, { status: 400 });
   if (!isRole(b.role)) return NextResponse.json({ error: "Choisissez un niveau d'accès." }, { status: 400 });
-  const next = b.role === "admin" ? "/admin" : "/scanner";
+  const next = b.role === "admin" ? "/admin" : "/admin/scanner";
   // Nouvelle personne : lien d'invitation. Personne déjà inscrite (ex. client) : lien de connexion directe.
   let { link, userId, error } = await makeAuthLink("invite", email, { next: `/mot-de-passe?suite=${next}` });
   if (!link) {

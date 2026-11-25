@@ -5,10 +5,10 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Espace administrateur", robots: { index: false } };
 
 export default async function Layout({ children }: { children: React.ReactNode }) {
-  const me = await requireStaff("admin", "/admin");
+  const me = await requireStaff("scan", "/admin");
   return (
     <main className="adm">
-      <AdminNav email={me.email} />
+      <AdminNav email={me.email} role={me.role} />
       <div className="adm-main">{children}</div>
     </main>
   );

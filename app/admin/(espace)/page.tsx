@@ -1,3 +1,4 @@
+import { requireStaff } from "@/lib/auth";
 import Link from "next/link";
 import { supabaseService } from "@/lib/supabase/server";
 import { euros, shortDate } from "@/lib/format";
@@ -7,6 +8,7 @@ export const dynamic = "force-dynamic";
 type O = { id: string; event_id: string; buyer_name: string; total_cents: number; created_at: string; pay_method: string; passes: { kind: string; used_at: string | null }[] };
 
 export default async function Dashboard() {
+  await requireStaff("admin", "/admin");
   const admin = supabaseService();
   const [{ data: evs }, { data: od }, { count: profilesCount }, { count: staffCount }] = await Promise.all([
     admin.from("events").select("id, name, starts_at, capacity, on_sale").order("starts_at"),

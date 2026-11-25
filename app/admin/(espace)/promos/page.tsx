@@ -1,9 +1,11 @@
+import { requireStaff } from "@/lib/auth";
 import { supabaseService } from "@/lib/supabase/server";
 import PromoManager, { type PromoRow } from "@/components/PromoManager";
 
 export const dynamic = "force-dynamic";
 
 export default async function Promos() {
+  await requireStaff("admin", "/admin/promos");
   const admin = supabaseService();
   const [{ data: promos }, { data: evs }, { data: used }] = await Promise.all([
     admin.from("promo_codes").select("*").order("created_at", { ascending: false }),

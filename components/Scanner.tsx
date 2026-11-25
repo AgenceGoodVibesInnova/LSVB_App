@@ -4,7 +4,7 @@ import jsQR from "jsqr";
 import { shortDate } from "@/lib/format";
 
 type Ev = { id: string; name: string; startsAt: string };
-type Result = { result: "ok" | "warn" | "bad" | "wait"; title: string; detail?: string; who?: string; code?: string };
+type Result = { result: "ok" | "warn" | "bad" | "wait"; title: string; detail?: string; who?: string; code?: string; items?: { label: string; q: number }[] | null };
 type Log = { kind: "ok" | "warn" | "bad"; text: string; at: number };
 
 const ICON = { ok: "✅", warn: "⚠️", bad: "⛔", wait: "⏳" };
@@ -148,6 +148,10 @@ export default function Scanner({ events, defaultEvent }: { events: Ev[]; defaul
               <div className="big">{res.title}</div>
               {res.detail ? <div className="det">{res.detail}</div> : null}
               {res.who ? <div className="small" style={{ opacity: 0.9 }}>{res.who}</div> : null}
+              {res.items?.length ? (<>
+                <ul className="scan-items">{res.items.map((i, k) => <li key={k}><b>{i.q}</b> {i.label}</li>)}</ul>
+                <div className="small" style={{ opacity: 0.9 }}>Commande payée · {res.items.reduce((n, i) => n + i.q, 0)} article(s)</div>
+              </>) : null}
             </>) : (<>
               <div className="ico">📷</div>
               <div className="big" style={{ color: "var(--muted)" }}>Prêt à scanner</div>

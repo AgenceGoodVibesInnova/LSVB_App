@@ -33,5 +33,5 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   // Pas de middleware pour les fichiers statiques, ni pour la notification SumUp.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|logo.png|robots.txt|api/sumup|.*\\.(?:png|svg|jpg|jpeg|webp|ico|woff2|ttf|js|css|map)$).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|logo.png|icon-192.png|icon-512.png|manifest.webmanifest|robots.txt|api/sumup|.*\\.(?:png|svg|jpg|jpeg|webp|ico|woff2|ttf|js|css|map)$).*)"],
 };

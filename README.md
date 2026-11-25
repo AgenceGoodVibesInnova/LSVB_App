@@ -14,13 +14,15 @@ ticket de caisse par e-mail, comptes clients, scan à l'entrée / à la buvette 
 
 | Adresse | Rôle |
 |---|---|
-| `/` | Achat : choix du match, billets, buvette, boutique (fenêtre de choix de la boisson ou de la taille), code promo, coordonnées |
+| `/` | Accueil de l'application : deux boutons, « Mon compte client » et « Espace admin » |
+| `/acheter` | Achat : choix du match, billets, buvette, boutique (choix de la boisson ou de la taille), code promo, coordonnées (nom, prénom, code postal) |
+| `/pass` | Mes pass : tous les QR codes du client, onglets Places / Buvette / Boutique ; en couleur si actifs, grisés une fois scannés |
 | `/paiement/[lien]` | Paiement SumUp (carte bancaire) |
-| `/billets/[lien]` | QR codes : un par billet et un par article buvette / boutique (lien privé ; tous les QR sont aussi dans l'e-mail) |
+| `/billets/[lien]` | QR codes d'une commande : un par billet, un seul pour toute la buvette, un seul pour la boutique (lien privé ; aussi dans l'e-mail) |
 | `/recu/[lien]` | Ticket de caisse numéroté (LSVB-2026-000001), détail TVA, imprimable |
 | `/mes-billets` | Retrouver ses billets sans compte (n° de commande + e-mail), les renvoyer par e-mail |
-| `/connexion` | Compte client : connexion, création de compte, mot de passe oublié |
-| `/compte` | Espace client : prochains matchs et QR codes, anciens achats et tickets de caisse, informations, mot de passe |
+| `/connexion` | Connexion, création du profil client, mot de passe oublié |
+| `/compte` | Mon profil : nom, prénom, adresse, code postal, ville, téléphone ; prochains matchs ; historique des factures |
 | `/admin/connexion` | Connexion de l'équipe (lien « Espace administrateur » en pied de page) |
 | `/admin` | Tableau de bord : chiffre d'affaires, billets, buvette, remplissage des prochains matchs |
 | `/admin/matchs` | Matchs, heures, jauges, fins de vente (billets / buvette-boutique), produits proposés et prix spéciaux par match |
@@ -31,7 +33,16 @@ ticket de caisse par e-mail, comptes clients, scan à l'entrée / à la buvette 
 | `/admin/clients` | Fichier clients (avec ou sans compte), recherche, export Excel |
 | `/admin/equipe` | Invitations par e-mail, niveaux Administrateur / Scanner, retrait d'accès |
 | `/admin/reglages` | Compte client obligatoire ou non, mentions du ticket de caisse (SIRET, TVA), e-mail des rapports |
-| `/scanner` | Contrôle des QR : mode Entrée, Buvette ou Boutique, caméra, photo ou douchette, compteurs en direct |
+| `/admin/scanner` | Contrôle des QR : mode Entrée, Buvette ou Boutique (toute la commande s'affiche), caméra, photo ou douchette, compteurs en direct. Seule page ouverte aux bénévoles (niveau Scanner) |
+
+## Application sur téléphone
+
+Le site s'installe sur l'écran d'accueil du téléphone (menu « Partager › Sur l'écran d'accueil » sur iPhone,
+« Installer l'application » sur Android) et s'ouvre alors comme une application, sur la page à deux boutons.
+Dans ce mode, l'inscription et « Mon profil » affichent « Pensez à activer vos notifications » : le bouton
+déclenche la demande d'autorisation du téléphone, et si elle a été refusée, indique le chemin dans les réglages.
+Une application web ne peut pas ouvrir elle-même les réglages du téléphone : il faudrait pour cela une application
+publiée sur l'App Store et le Play Store. L'envoi effectif des notifications « commande prête » reste à brancher.
 
 ## Ventes, TVA et codes promo
 
@@ -59,7 +70,7 @@ ticket de caisse par e-mail, comptes clients, scan à l'entrée / à la buvette 
 
 ### 1. Supabase
 1. Créer un projet sur supabase.com (région Europe).
-2. SQL Editor : exécuter dans l'ordre `supabase/migrations/0001_init.sql`, `0002_comptes.sql`, `0003_catalogue_promos_tva.sql`,
+2. SQL Editor : exécuter dans l'ordre `supabase/migrations/0001_init.sql`, `0002_comptes.sql`, `0003_catalogue_promos_tva.sql`, `0004_pass_profil.sql`,
    puis `supabase/matchs-2026-2027.sql`
    (les 7 matchs à domicile NM1 restants, heure 20:00 par défaut).
 3. Authentication > URL Configuration : *Site URL* = l'adresse du site (ex. `https://billetterie.lsvb.fr`),

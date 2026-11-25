@@ -1,3 +1,4 @@
+import { requireStaff } from "@/lib/auth";
 import { supabaseService } from "@/lib/supabase/server";
 import { clientList } from "@/lib/clients";
 import { euros, shortDate } from "@/lib/format";
@@ -5,6 +6,7 @@ import { euros, shortDate } from "@/lib/format";
 export const dynamic = "force-dynamic";
 
 export default async function Clients({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+  await requireStaff("admin", "/admin/clients");
   const sp = await searchParams;
   const all = await clientList(supabaseService());
   const q = (sp.q ?? "").trim().toLowerCase();

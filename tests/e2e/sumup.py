@@ -18,11 +18,11 @@ sql = lambda q: subprocess.run(["psql", "-qtA", "-h", "127.0.0.1", "-p", "54322"
 # 1. Un visiteur (non connecté) peut acheter quand SumUp est branché
 with sync_playwright() as p:
     b = p.chromium.launch(); pg = b.new_page()
-    pg.goto(BASE); pg.wait_for_load_state("networkidle")
+    pg.goto(BASE + "/acheter"); pg.wait_for_load_state("networkidle")
     check("ouvre très bientôt" not in pg.content() and "Paiement simulé" not in pg.content(), "vente ouverte au public")
     pg.locator(".prod", has_text="Tarif réduit").locator("button[aria-label^='Ajouter']").click()
     pg.locator("button[aria-label='Ajouter Pepsi']").click()
-    pg.fill("input[autocomplete=name]", "Paul Durand"); pg.fill("input[autocomplete=email]", "paul@test.local")
+    pg.fill("input[autocomplete=family-name]", "Durand"); pg.fill("input[autocomplete=given-name]", "Paul"); pg.fill("input[autocomplete=postal-code]", "85340"); pg.fill("input[autocomplete=email]", "paul@test.local")
     pg.click("button:has-text('Payer ma commande')"); pg.wait_for_url(re.compile("/paiement/"))
     token = pg.url.rsplit("/", 1)[1]
     check(pg.locator("#sumup-card").count() == 1 and "SumUp" in pg.content(), "page de paiement avec le formulaire SumUp")
@@ -50,9 +50,9 @@ check(d.get("status") == "paid", "vérification : payée")
 # 5. Refus de carte → nouvelle tentative
 with sync_playwright() as p:
     b = p.chromium.launch(); pg = b.new_page()
-    pg.goto(BASE); pg.wait_for_load_state("networkidle")
+    pg.goto(BASE + "/acheter"); pg.wait_for_load_state("networkidle")
     pg.locator(".prod", has_text="Plein tarif").locator("button[aria-label^='Ajouter']").click()
-    pg.fill("input[autocomplete=name]", "Zoé Refus"); pg.fill("input[autocomplete=email]", "zoe@test.local")
+    pg.fill("input[autocomplete=family-name]", "Refus"); pg.fill("input[autocomplete=given-name]", "Zoé"); pg.fill("input[autocomplete=postal-code]", "85340"); pg.fill("input[autocomplete=email]", "zoe@test.local")
     pg.click("button:has-text('Payer ma commande')"); pg.wait_for_url(re.compile("/paiement/")); t2 = pg.url.rsplit("/", 1)[1]
     b.close()
 c2 = sql(f"select sumup_checkout_id from orders where access_token='{t2}'")
@@ -66,14 +66,14 @@ call(f"{S}/_set/{c3}/PAID", {}); st, d = call(f"{BASE}/api/orders/{t2}/verify", 
 already = int(sql("select count(*) from passes p join orders o on o.id=p.order_id where o.event_id='J16CHA' and p.kind='ticket' and (o.status='paid' or (o.status='pending' and o.created_at > now() - interval '30 minutes'))"))
 sql(f"update events set capacity={already + 3} where id='J16CHA'")
 def order(n):
-    return call(f"{BASE}/api/orders", {"eventId": "J16CHA", "name": "Groupe", "email": "g@test.local", "items": {"full": n}})
+    return call(f"{BASE}/api/orders", {"eventId": "J16CHA", "lastName": "Groupe", "firstName": "Test", "postal": "85000", "email": "g@test.local", "items": {"full": n}})
 s1, d1 = order(2); s2, d2 = order(2); s3, d3 = order(1)
 check(s1 == 200 and s2 == 409 and "places" in d2.get("error", "") and s3 == 200, f"jauge 3 places : 2 OK, 2 refusées, 1 OK ({s1},{s2},{s3})")
 sql("update events set capacity=0 where id='J16CHA'")
 # 7. Prix falsifié / produit inconnu
-s, d = call(f"{BASE}/api/orders", {"eventId": "J16CHA", "name": "X", "email": "x@test.local", "items": {"bt|Whisky": 1}})
+s, d = call(f"{BASE}/api/orders", {"eventId": "J16CHA", "lastName": "X", "firstName": "Y", "postal": "85000", "email": "x@test.local", "items": {"bt|Whisky": 1}})
 check(s == 409, "boisson hors carte refusée")
-s, d = call(f"{BASE}/api/orders", {"eventId": "J16CHA", "name": "X", "email": "x@test.local", "items": {"full": 1}, "total": 1})
+s, d = call(f"{BASE}/api/orders", {"eventId": "J16CHA", "lastName": "X", "firstName": "Y", "postal": "85000", "email": "x@test.local", "items": {"full": 1}, "total": 1})
 _, co = call(f"{S}/checkouts/" + sql(f"select sumup_checkout_id from orders where id='{d['id']}'"))
 check(co["amount"] == 10.0, "prix toujours calculé par le serveur")
 # 8. Scan sans connexion refusé

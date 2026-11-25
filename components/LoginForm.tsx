@@ -1,10 +1,8 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 export default function LoginForm({ suite, notice }: { suite: string; notice?: string }) {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [err, setErr] = useState(notice ?? "");
@@ -19,9 +17,9 @@ export default function LoginForm({ suite, notice }: { suite: string; notice?: s
     // Un compte client sans accès équipe est renvoyé vers son espace
     const r = await fetch("/api/admin/whoami", { cache: "no-store" });
     const d = await r.json().catch(() => ({}));
-    if (!d.role) { router.push("/admin/connexion?refus=1"); router.refresh(); return; }
-    router.push(d.role === "scan" && suite.startsWith("/admin") ? "/scanner" : suite);
-    router.refresh();
+    if (!d.role) { window.location.assign("/admin/connexion?refus=1"); return; }
+    // Navigation complète : une page préchargée avant la connexion ne doit pas être réutilisée
+    window.location.assign(d.role === "scan" && !suite.startsWith("/admin/scanner") ? "/admin/scanner" : suite);
   }
   return (
     <form onSubmit={submit}>

@@ -3,7 +3,7 @@ import { supabaseService } from "@/lib/supabase/server";
 import { requestStaff } from "@/lib/auth";
 import { CODE_RE } from "@/lib/format";
 
-type R = { result: "ok" | "warn" | "bad"; title: string; detail?: string; who?: string; code?: string };
+type R = { result: "ok" | "warn" | "bad"; title: string; detail?: string; who?: string; code?: string; items?: { label: string; q: number }[] | null };
 const reply = (r: R) => NextResponse.json(r);
 
 /** Contrôle d'un QR code à l'entrée (mode « ticket ») ou à la buvette (mode « food »). */
@@ -22,7 +22,7 @@ export async function POST(req: Request) {
   const admin = supabaseService();
   const { data: p } = await admin
     .from("passes")
-    .select("kind, label, token, used_at, orders!inner(event_id, status, buyer_name, grp, events(name, starts_at))")
+    .select("kind, label, token, used_at, items, orders!inner(event_id, status, buyer_name, grp, events(name, starts_at))")
     .eq("order_id", oid).eq("idx", idx).maybeSingle();
   if (!p || p.token !== tok) return reply({ result: "bad", title: "Billet invalide", detail: "Code introuvable" });
   const o = (Array.isArray(p.orders) ? p.orders[0] : p.orders) as { event_id: string; status: string; buyer_name: string; grp: string | null; events: { name: string; starts_at: string } | { name: string; starts_at: string }[] | null };
@@ -51,14 +51,17 @@ export async function POST(req: Request) {
       title: mode === "ticket" ? "Déjà scanné" : mode === "food" ? "Déjà servi" : "Déjà remis",
       detail: at ? `Le ${at.toLocaleDateString("fr-FR", { timeZone: "Europe/Paris" })} à ${at.toLocaleTimeString("fr-FR", { timeZone: "Europe/Paris" })}` : undefined,
       who: `${p.label} · ${who}`,
+      items: p.items as R["items"],
     });
   }
   const { count } = await admin.from("passes").select("idx", { count: "exact", head: true }).eq("order_id", oid).eq("kind", p.kind);
+  const items = (p.items ?? null) as R["items"];
   return reply({
     result: "ok",
-    title: mode === "food" ? "À servir" : mode === "shop" ? "À remettre" : "Entrée validée",
-    detail: p.label,
-    who: who + (count && count > 1 ? ` · commande de ${count}` : ""),
+    title: mode === "food" ? "Commande à servir" : mode === "shop" ? "Commande à remettre" : "Entrée validée",
+    detail: items ? undefined : p.label,
+    who: who + (!items && count && count > 1 ? ` · commande de ${count}` : ""),
     code: `${oid}-${idx}-${tok}`,
+    items,
   });
 }

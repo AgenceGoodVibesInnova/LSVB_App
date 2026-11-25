@@ -1,3 +1,4 @@
+import { requireStaff } from "@/lib/auth";
 import { supabaseService } from "@/lib/supabase/server";
 import { sumupConfigured } from "@/lib/sumup";
 import SettingsForm from "@/components/SettingsForm";
@@ -5,6 +6,7 @@ import SettingsForm from "@/components/SettingsForm";
 export const dynamic = "force-dynamic";
 
 export default async function Reglages() {
+  await requireStaff("admin", "/admin/reglages");
   const { data } = await supabaseService().from("settings").select("account_required, contact_email, report_email, legal_name, legal_address, siret, vat_number").eq("id", 1).maybeSingle();
   const smtp = !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
   return (

@@ -2,12 +2,12 @@ import { NextResponse } from "next/server";
 import { supabaseService } from "@/lib/supabase/server";
 import { currentUser, requestStaff } from "@/lib/auth";
 import { createCheckout, sumupConfigured } from "@/lib/sumup";
-import { kindOf, loadProducts, HOLD_MINUTES, type Pass } from "@/lib/catalog";
+import { kindOf, loadProducts, BON_LABEL, HOLD_MINUTES, type Pass } from "@/lib/catalog";
 import { checkPromo, priceCart, OrderError, type EventRow } from "@/lib/pricing";
 import { markPaid } from "@/lib/orders";
 import { code } from "@/lib/format";
 
-type Body = { eventId?: string; name?: string; email?: string; phone?: string; group?: string; promo?: string; items?: Record<string, number> };
+type Body = { eventId?: string; lastName?: string; firstName?: string; postal?: string; name?: string; email?: string; phone?: string; group?: string; promo?: string; items?: Record<string, number> };
 
 export async function POST(req: Request) {
   const body = (await req.json().catch(() => ({}))) as Body;
@@ -17,10 +17,14 @@ export async function POST(req: Request) {
   const user = staff ? null : await currentUser();
   const { data: settings } = await admin.from("settings").select("account_required").eq("id", 1).maybeSingle();
   if (settings?.account_required && !user && !staff) return NextResponse.json({ error: "Connectez-vous ou créez un compte pour acheter." }, { status: 401 });
-  const name = (body.name ?? "").trim().slice(0, 120);
+  const last = (body.lastName ?? "").trim().slice(0, 60);
+  const first = (body.firstName ?? "").trim().slice(0, 60);
+  const postal = (body.postal ?? "").trim().toUpperCase().slice(0, 10);
+  const name = `${first} ${last.toUpperCase()}`.trim();
   // Client connecté : la commande est rattachée à son compte et à son e-mail
   const email = (user?.email ?? body.email ?? "").trim().toLowerCase().slice(0, 190);
-  if (!name) return NextResponse.json({ error: "Indiquez votre nom." }, { status: 400 });
+  if (!last || !first) return NextResponse.json({ error: "Indiquez votre nom et votre prénom." }, { status: 400 });
+  if (!/^[0-9A-Z -]{4,10}$/.test(postal)) return NextResponse.json({ error: "Indiquez votre code postal." }, { status: 400 });
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return NextResponse.json({ error: "Adresse e-mail invalide." }, { status: 400 });
 
   // Sans SumUp, seul le paiement simulé est possible, et uniquement pour l'équipe connectée (tests).
@@ -41,15 +45,20 @@ export async function POST(req: Request) {
   }
   const { lines, subtotal, discount, total, vat, promo } = priced;
 
+  // Billets : un QR par personne. Buvette et boutique : un seul QR chacun, qui regroupe tous les articles.
   const passes: Pass[] = [];
-  for (const l of lines)
-    for (let i = 0; i < l.q; i++) passes.push({ idx: passes.length, kind: kindOf(l.cat), type: l.k, label: l.label, drink: l.drink, token: code(4) });
+  for (const l of lines.filter((x) => x.cat === "billet"))
+    for (let i = 0; i < l.q; i++) passes.push({ idx: passes.length, kind: "ticket", type: l.k, label: l.label, drink: null, token: code(4) });
+  for (const kind of ["food", "shop"] as const) {
+    const items = lines.filter((x) => x.cat !== "billet" && kindOf(x.cat) === kind).map((x) => ({ label: x.label, q: x.q }));
+    if (items.length) passes.push({ idx: passes.length, kind, type: kind, label: BON_LABEL[kind], drink: null, token: code(4), items });
+  }
 
   const free = total === 0; // ex. code promo à 100 % (invitations)
   const id = code(8);
   const { data: created, error } = await admin.rpc("create_order", {
     p_order: {
-      id, event_id: ev.id, user_id: user?.id ?? null, buyer_name: name, email,
+      id, event_id: ev.id, user_id: user?.id ?? null, buyer_name: name, buyer_first: first, buyer_last: last, postal_code: postal, email,
       phone: (body.phone ?? "").trim().slice(0, 30) || null, grp: (body.group ?? "").trim().slice(0, 120) || null,
       lines, subtotal_cents: subtotal, discount_cents: discount, promo_code: promo?.code ?? null, vat, total_cents: total,
       is_demo: demo && !free, pay_method: free ? "gratuit" : demo ? "demo" : "sumup",

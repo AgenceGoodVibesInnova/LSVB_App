@@ -8,13 +8,13 @@ export type ReceiptData = {
   buyer_name: string; email: string; user_id: string | null; created_at: string; paid_at: string | null;
   lines: Line[]; subtotal_cents: number; discount_cents: number; promo_code: string | null; total_cents: number; vat: VatRow[];
   event: { name: string; starts_at: string; venue: string } | null;
-  passes: { idx: number; kind: "ticket" | "food" | "shop"; label: string; token: string; used_at: string | null }[];
+  passes: { idx: number; kind: "ticket" | "food" | "shop"; label: string; token: string; used_at: string | null; items: { label: string; q: number }[] | null }[];
   legal: Legal;
 };
 
 /** Commande complète pour le ticket de caisse, l'e-mail et la page des billets. */
 export async function loadReceipt(admin: SupabaseClient, by: { token?: string; id?: string }): Promise<ReceiptData | null> {
-  let q = admin.from("orders").select("id, access_token, receipt_no, status, pay_method, is_demo, buyer_name, email, user_id, created_at, paid_at, lines, subtotal_cents, discount_cents, promo_code, total_cents, vat, events(name, starts_at, venue), passes(idx, kind, label, token, used_at)");
+  let q = admin.from("orders").select("id, access_token, receipt_no, status, pay_method, is_demo, buyer_name, email, user_id, created_at, paid_at, lines, subtotal_cents, discount_cents, promo_code, total_cents, vat, events(name, starts_at, venue), passes(idx, kind, label, token, used_at, items)");
   q = by.token ? q.eq("access_token", by.token) : q.eq("id", by.id ?? "");
   const [{ data: o }, { data: legal }] = await Promise.all([
     q.maybeSingle(),

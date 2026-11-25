@@ -40,7 +40,7 @@ export default async function Billets({ params }: { params: Promise<{ token: str
           </div>
         </div>
         <p className="okbox noprint" style={{ margin: "0 0 16px" }}>
-          ✔ Paiement confirmé. Présentez un QR code par personne à l&apos;entrée{r.passes.length > nT ? ", et vos bons à la buvette ou à la boutique" : ""}. Cette page, l&apos;e-mail reçu ou une impression : tout fonctionne.
+          ✔ Paiement confirmé. Présentez un QR code par personne à l&apos;entrée{r.passes.length > nT ? " ; à la buvette et à la boutique, un seul QR suffit pour toute la commande" : ""}. Cette page, l&apos;e-mail reçu ou une impression : tout fonctionne.
           {extra?.email_sent_at ? " Tous les QR codes vous ont aussi été envoyés par e-mail." : ""}
         </p>
         <div className="tickets">
@@ -59,6 +59,7 @@ export default async function Billets({ params }: { params: Promise<{ token: str
                 <div className="cut" />
                 <div className="body">
                   <span className="lbl">{p.label}</span>
+                  {p.items?.length ? <ul className="bon-items">{p.items.map((i, k) => <li key={k}><b>{i.q}×</b> {i.label}</li>)}</ul> : null}
                   <div className="qrsvg" dangerouslySetInnerHTML={{ __html: qrs[i] }} />
                   <div className="code">{c}</div>
                   <div className="who">{r.buyer_name}</div>
